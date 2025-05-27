@@ -3,7 +3,8 @@ import os
 import re
 import io
 from datetime import date, datetime, time
-import mysql.connector
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import uuid
 import openpyxl
 import tempfile
@@ -31,13 +32,20 @@ def login_required(f):
 
 # Database connection
 def get_db_connection():
-    return mysql.connector.connect(
-        host=os.getenv("DB_HOST"),
-        port=int(os.getenv("DB_PORT", 3306)),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASS"),
-        database=os.getenv("DB_NAME")
-    )
+    database_url = os.getenv("DATABASE_URL")
+    
+    if database_url:
+        # สำหรับ Render.com
+        return psycopg2.connect(database_url)
+    else:
+        # สำหรับ local development
+        return psycopg2.connect(
+            host=os.getenv("DB_HOST"),
+            port=int(os.getenv("DB_PORT", 5432)),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASS"),
+            database=os.getenv("DB_NAME")
+        )
 
 def load_data_from_file(filename):
     try:
@@ -75,7 +83,7 @@ def process_login():
             })
         
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Query เพื่อดึงข้อมูล user รวมทั้ง role
         query = "SELECT id, username, pass, first_name, last_name, role FROM login WHERE username = %s"
@@ -172,7 +180,7 @@ def get_company_details():
             return jsonify({"success": False, "message": "Missing required parameters"})
         
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # เลือกตารางตาม experience type
         if experience_type == 'tour':
@@ -207,7 +215,7 @@ def get_detail_price():
             return jsonify({"success": False, "message": "Missing required parameters"})
         
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # เลือกตารางตาม experience type
         if experience_type == 'tour':
@@ -287,7 +295,7 @@ def submit_tour_booking():
         query = """
         SELECT booking_no FROM tour_motobike_rental 
         WHERE booking_no LIKE %s 
-        ORDER BY CAST(SUBSTRING(booking_no, 5) AS UNSIGNED) DESC 
+        ORDER BY CAST(SUBSTRING(booking_no, 5) AS INTEGER) DESC 
         LIMIT 1
         """
         cursor.execute(query, (f"{prefix}%",))
@@ -407,7 +415,7 @@ def view_tour_bookings():
     try:
         # เชื่อมต่อกับฐานข้อมูล
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)  # ใช้ dictionary cursor เพื่อให้ได้ผลลัพธ์เป็น dictionary
+        cursor = conn.cursor(cursor_factory=RealDictCursor)  # ใช้ dictionary cursor เพื่อให้ได้ผลลัพธ์เป็น dictionary
         
         # ดึงข้อมูลทั้งหมดจากตาราง
         query = """
@@ -499,7 +507,7 @@ def search_bookings():
             
             # เชื่อมต่อกับฐานข้อมูล
             conn = get_db_connection()
-            cursor = conn.cursor(dictionary=True)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # สร้าง query พื้นฐาน
             query = """
@@ -642,7 +650,7 @@ def get_booking_details():
         
         # เชื่อมต่อกับฐานข้อมูล
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # ดึงข้อมูลการจองพร้อม JOIN เพื่อดึงราคาต่อคนจากตารางที่เกี่ยวข้อง
         query = """
@@ -782,7 +790,7 @@ def generate_excel_form():
         
         # เชื่อมต่อฐานข้อมูล
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # ดึงข้อมูลการจอง
         query = """
@@ -1052,7 +1060,7 @@ def export_tour_motorbike():
         
         # Connect to database
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Execute query
         cursor.execute(query, params)
@@ -1214,7 +1222,7 @@ def home_transfer():
     try:
         # Connect to database to get transfer locations
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Get all unique destinations for departure transfers (where place_from is resort)
         departure_query = """
@@ -1258,7 +1266,7 @@ def get_transfer_price():
         location = request.json.get('location')
         
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         if transfer_type == 'departure':
             # For departure: from resort to selected destination
@@ -1390,7 +1398,7 @@ def home_transfer_form():
     try:
         # Connect to database
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Retrieve all bookings from transfer_rental table
         query = """
@@ -1466,7 +1474,7 @@ def search_transfer_bookings():
             
             # Connect to database
             conn = get_db_connection()
-            cursor = conn.cursor(dictionary=True)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
             
             # Base query
             query = """
@@ -1591,7 +1599,7 @@ def get_transfer_booking_details():
         
         # Connect to database
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Get booking details with paid amount from transfer_tabel
         query = """
@@ -1729,7 +1737,7 @@ def generate_excel_form_transfer():
         
         # เชื่อมต่อฐานข้อมูล
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # ดึงข้อมูลการจอง
         query = """
@@ -1980,7 +1988,7 @@ def export_transfers():
         
         # Connect to database
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         # Execute query
         cursor.execute(query, params)
@@ -2140,7 +2148,7 @@ def get_tour_data():
 
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         query = "SELECT * FROM tour_tabel ORDER BY id"
         cursor.execute(query)
@@ -2202,7 +2210,7 @@ def get_motorbike_data():
 
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         query = "SELECT * FROM motorbike_tabel ORDER BY id"
         cursor.execute(query)
@@ -2264,7 +2272,7 @@ def get_transfer_data():
 
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
         query = "SELECT * FROM transfer_tabel ORDER BY id"
         cursor.execute(query)
