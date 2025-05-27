@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/P1P2_style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/notification_style.css') }}">  
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/loading.css') }}">    
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}">
+<style>
+    /* CSS Variables */
+:root {
+    --dark-gold: #B8860B;
+    --brown: #8B4513;
+    --white: #ffffff;
+}
+
+/* Notification Container */
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+/* Base Notification Styles */
+.notification {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 16px 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    max-width: 400px;
+    min-width: 300px;
+    position: relative;
+    pointer-events: all;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    overflow: hidden;
+}
+
+.notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.notification.remove {
+    opacity: 0;
+    transform: translateX(100%);
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 0;
+}
+
+/* Icon Styles */
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+/* Content Styles */
+.notification-content {
+    flex: 1;
+    color: #333;
+}
+
+.notification-message {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+/* Close Button */
+.notification-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.notification-close:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #666;
+}
+
+/* Progress Bar */
+.notification-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.notification-progress-bar {
+    height: 100%;
+    width: 0%;
+    transition: width linear;
+}
+
+/* Type-specific styles */
+.notification.success .notification-icon {
+    background-color: #28a745; /* สีเขียว */
+}
+
+.notification.success .notification-progress-bar {
+    background-color: #28a745;
+}
+
+.notification.error .notification-icon {
+    background-color: #dc3545; /* สีแดง */
+}
+
+.notification.error .notification-progress-bar {
+    background-color: #dc3545;
+}
+
+.notification.info .notification-icon {
+    background-color: #17a2b8; /* สีฟ้า */
+}
+
+.notification.info .notification-progress-bar {
+    background-color: #17a2b8;
+}
+
+.notification.warning .notification-icon {
+    background-color: #ffc107; /* สีเหลือง */
+    color: #333; /* เปลี่ยนสีข้อความเป็นดำสำหรับ warning */
+}
+
+.notification.warning .notification-progress-bar {
+    background-color: #ffc107;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .notification-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+    }
+
+    .notification {
+        max-width: none;
+        min-width: auto;
+        margin-bottom: 10px;
+    }
+}
+
+/* Animation for stacked notifications */
+.notification:nth-child(n+4) {
+    transform: translateX(100%) scale(0.95);
+    opacity: 0.7;
+}
+
+.notification.show:nth-child(n+4) {
+    transform: translateX(0) scale(0.95);
+}
+
+/* Enhanced hover effects */
+.notification:hover {
+    transform: translateX(-5px) scale(1.02);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.notification.show:hover {
+    transform: translateX(-5px) scale(1.02);
+}
+
+/* Glassmorphism effect */
+.notification {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Dark theme support (optional) */
+@media (prefers-color-scheme: dark) {
+    .notification {
+        background: rgba(40, 40, 40, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .notification-content {
+        color: #fff;
+    }
+    
+    .notification-close {
+        color: #ccc;
+    }
+    
+    .notification-close:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #fff;
+    }
+}
+</style>
+    <title>Home Tour & Motorbike Booking Form</title>
+</head>
+<body data-user-role="{{ session.role }}">
+		<!-- Wrapper -->
+        <div id="wrapper">
+            <!-- Header -->
+                <header id="header">
+                    <h1>
+                        <a href="home">Lamai Bayview Boutique Resort</a>
+                    </h1>
+                    <nav class="main">
+                        <ul>
+                            <li class="menu">
+                                <a class="fa-bars" href="#menu">Menu</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </header>
+
+            <!-- Menu -->
+                <section id="menu">
+
+                    <!-- Links -->
+                        <section>
+                            <ul class="links">
+                                <li>
+                                    <a href="tour_and_motorbike_form">
+                                        <h3 style="color: #000000;">Tour & Motorbike Rental</h3>
+                                        <p>click for view the form</p>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="home_transfer_form">
+                                        <h3 style="color: #000000;">Home Transfer</h3>
+                                        <p>click for view the form</p>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="data_management">
+                                        <h3 style="color: #000000;">Setting</h3>
+                                        <p>click for setting tabel data (admin only-access)</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </section>
+
+                        
+
+                        <!-- Actions -->
+                        <section>
+                            <a href="javascript:void(0);" 
+                            data-href="{{ url_for('logout') }}"
+                            data-message="Logging out..."
+                            class="card-btn loading-btn" 
+                            style="display: flex; justify-content: center; align-items: center; height: 40px;"
+                            onclick="handleLogout(event, this)">
+                                Log out
+                            </a>
+                        </section>
+                </section>
+        </div>
+
+    <div class="container">
+        <div class="form-wrapper">
+            <div class="gold-accent"></div>
+            <div class="form-header">
+                <h1>Lamai Bayview Boutique Resort</h1>
+                <p>Home Tour & Motorbike Booking</p>
+            </div>
+            
+    <!-- Updated form section -->
+    <div class="form-body">
+        <form id="luxuryBookingForm" action="/submit_tour_booking" method="POST">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="name">Name</label>
+                    <input type="text" class="form-control" id="name" name="name" placeholder="Enter your name" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="surname">Surname</label>
+                    <input type="text" class="form-control" id="surname" name="surname" placeholder="Enter your surname" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="room">Room</label>
+                <select id="room" name="room" class="form-control" required>
+                    <option value="">-- Select Room --</option>
+                    {% for room_number in room %}
+                    <option value="{{ room_number }}">{{ room_number }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Experience Type</label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="experienceType" class="radio-input" value="tour" checked onchange="handleExperienceTypeChange()">
+                            <span class="radio-label">Tour</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="experienceType" class="radio-input" value="motorbike" onchange="handleExperienceTypeChange()">
+                            <span class="radio-label">Motorbike Rental</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="company">Company</label>
+                    <select id="company" name="company" class="form-control" required onchange="handleCompanyChange()">
+                        <option value="">-- Select Company --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="detail">Detail</label>
+                    <select id="detail" name="detail" class="form-control" required onchange="handleDetailChange()">
+                        <option value="">-- Select Detail --</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="time">Time</label>
+                    <input type="time" class="form-control" id="time" name="time" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="date">Date</label>
+                    <input type="date" class="form-control" id="date" name="date" value="{{ today }}" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="persons">Persons</label>
+                    <input type="number" class="form-control" id="persons" name="persons" min="1" placeholder="Number of persons" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="price">Price</label>
+                    <input type="number" class="form-control" id="price" name="price" placeholder="Price per person" required readonly>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="total">Total</label>
+                    <input type="text" class="form-control" id="total" readonly placeholder="Total amount">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="staffName">Staff Name</label>
+                    <input type="text" class="form-control" id="staffName" name="staffName" placeholder="Reservation maker" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="status">Status</label>
+                    <select class="form-control" id="status" name="status" required>
+                        <option value="">Paid/Unpaid</option>
+                        <option value="paid">Paid</option>
+                        <option value="unpaid">Unpaid</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="search-section">
+                <h3 class="search-title">Period</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="searchDate">Date</label>
+                        <input type="date" class="form-control" id="searchDate" name="searchDate">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="searchDateTo">To</label>
+                        <input type="date" class="form-control" id="searchDateTo" name="searchDateTo">
+                    </div>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn">Submit Booking</button>
+        </form>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/P1_script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/notification.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/setting_protection.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/loading.js') }}"></script>
+
+</body>
+</html>

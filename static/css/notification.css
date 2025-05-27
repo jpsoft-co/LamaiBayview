@@ -1,0 +1,216 @@
+/* CSS Variables */
+:root {
+    --dark-gold: #B8860B;
+    --brown: #8B4513;
+    --white: #ffffff;
+}
+
+/* Notification Container */
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+/* Base Notification Styles */
+.notification {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 16px 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    max-width: 400px;
+    min-width: 300px;
+    position: relative;
+    pointer-events: all;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    overflow: hidden;
+}
+
+.notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.notification.remove {
+    opacity: 0;
+    transform: translateX(100%);
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 0;
+}
+
+/* Icon Styles */
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+/* Content Styles */
+.notification-content {
+    flex: 1;
+    color: #333;
+}
+
+.notification-message {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+/* Close Button */
+.notification-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.notification-close:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #666;
+}
+
+/* Progress Bar */
+.notification-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.notification-progress-bar {
+    height: 100%;
+    width: 0%;
+    transition: width linear;
+}
+
+/* Type-specific styles */
+.notification.success .notification-icon {
+    background-color: #28a745; /* สีเขียว */
+}
+
+.notification.success .notification-progress-bar {
+    background-color: #28a745;
+}
+
+.notification.error .notification-icon {
+    background-color: #dc3545; /* สีแดง */
+}
+
+.notification.error .notification-progress-bar {
+    background-color: #dc3545;
+}
+
+.notification.info .notification-icon {
+    background-color: #17a2b8; /* สีฟ้า */
+}
+
+.notification.info .notification-progress-bar {
+    background-color: #17a2b8;
+}
+
+.notification.warning .notification-icon {
+    background-color: #ffc107; /* สีเหลือง */
+    color: #333; /* เปลี่ยนสีข้อความเป็นดำสำหรับ warning */
+}
+
+.notification.warning .notification-progress-bar {
+    background-color: #ffc107;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .notification-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+    }
+
+    .notification {
+        max-width: none;
+        min-width: auto;
+        margin-bottom: 10px;
+    }
+}
+
+/* Animation for stacked notifications */
+.notification:nth-child(n+4) {
+    transform: translateX(100%) scale(0.95);
+    opacity: 0.7;
+}
+
+.notification.show:nth-child(n+4) {
+    transform: translateX(0) scale(0.95);
+}
+
+/* Enhanced hover effects */
+.notification:hover {
+    transform: translateX(-5px) scale(1.02);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.notification.show:hover {
+    transform: translateX(-5px) scale(1.02);
+}
+
+/* Glassmorphism effect */
+.notification {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Dark theme support (optional) */
+@media (prefers-color-scheme: dark) {
+    .notification {
+        background: rgba(40, 40, 40, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .notification-content {
+        color: #fff;
+    }
+    
+    .notification-close {
+        color: #ccc;
+    }
+    
+    .notification-close:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #fff;
+    }
+}

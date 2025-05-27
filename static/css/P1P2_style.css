@@ -1,0 +1,923 @@
+:root {
+    --gold: #d4b98c;
+    --light-gold: #e9dbbc;
+    --dark-gold: #b69b67;
+    --brown: #8c7356;
+    --light-brown: #a48c73;
+    --cream: #f9f5eb;
+    --white: #ffffff;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Cormorant Garamond', 'Playfair Display', serif;
+}
+
+body {
+    background-color: var(--cream);
+    color: var(--brown);
+    padding: 40px 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-image: linear-gradient(45deg, var(--cream) 25%, var(--white) 25%, var(--white) 50%, var(--cream) 50%, var(--cream) 75%, var(--white) 75%, var(--white) 100%);
+    background-size: 60px 60px;
+    background-attachment: fixed;
+}
+
+.container {
+    width: 90%;
+    max-width: 1000px;
+    margin: 0 auto;
+    margin-top: 0%;
+}
+
+.form-wrapper {
+    background-color: var(--white);
+    border-radius: 10px;
+    box-shadow: 0 15px 30px rgba(140, 115, 86, 0.1);
+    overflow: hidden;
+    padding: 0;
+    position: relative;
+}
+
+.form-header {
+    background: linear-gradient(135deg, var(--gold), var(--light-gold));
+    color: var(--brown);
+    padding: 30px;
+    text-align: center;
+    border-bottom: 1px solid var(--light-gold);
+}
+
+.form-header h1 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 300;
+    letter-spacing: 1px;
+}
+
+.form-header p {
+    margin-top: 10px;
+    font-style: italic;
+    opacity: 0.8;
+}
+
+.form-body {
+    padding: 40px;
+}
+
+.form-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 25px;
+    position: relative;
+}
+
+.form-group {
+    flex: 1;
+    margin: 0 10px;
+    min-width: 200px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--brown);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid var(--light-gold);
+    border-radius: 5px;
+    background-color: var(--white);
+    color: var(--brown);
+    transition: all 0.3s ease;
+    font-size: 16px;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--dark-gold);
+    box-shadow: 0 0 0 2px rgba(212, 185, 140, 0.2);
+}
+
+.radio-group {
+    display: flex;
+    margin-top: 10px;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    margin-right: 20px;
+    cursor: pointer;
+}
+
+.radio-input {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--gold);
+    border-radius: 50%;
+    margin-right: 8px;
+    position: relative;
+    cursor: pointer;
+}
+
+.radio-input:checked::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 10px;
+    height: 10px;
+    background-color: var(--gold);
+    border-radius: 50%;
+}
+
+.radio-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(212, 185, 140, 0.2);
+}
+
+.radio-label {
+    font-size: 15px;
+}
+
+.divider {
+    height: 1px;
+    background-color: var(--light-gold);
+    margin: 30px 0;
+    opacity: 0.5;
+}
+
+.search-section {
+    background-color: var(--light-gold);
+    padding: 25px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.search-section .form-row:last-child {
+    margin-bottom: 0;
+}
+
+.search-title {
+    color: var(--brown);
+    margin-bottom: 20px;
+    font-size: 18px;
+    text-align: center;
+    font-weight: normal;
+    letter-spacing: 1px;
+}
+
+.btn {
+    background: linear-gradient(135deg, var(--gold), var(--dark-gold));
+    color: var(--white);
+    border: none;
+    padding: 12px 30px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    display: block;
+    margin: 40px auto 0;
+    box-shadow: 0 5px 15px rgba(140, 115, 86, 0.2);
+}
+
+.btn:hover {
+    background: linear-gradient(135deg, var(--dark-gold), var(--brown));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(140, 115, 86, 0.3);
+}
+
+.btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 10px rgba(140, 115, 86, 0.2);
+}
+
+.form-footer {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 14px;
+    color: var(--brown);
+    opacity: 0.7;
+}
+
+.gold-accent {
+    position: absolute;
+    height: 100%;
+    width: 10px;
+    background: linear-gradient(to bottom, var(--gold), var(--dark-gold));
+    left: 0;
+    top: 0;
+}
+
+@media (max-width: 768px) {
+    .form-body {
+        padding: 30px 20px;
+    }
+    
+    .form-group {
+        flex: 100%;
+        margin: 0 0 15px 0;
+        min-width: 100%;
+    }
+    
+    .search-section {
+        padding: 20px 15px;
+    }
+}
+
+
+
+.card-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--gold), var(--dark-gold));
+    color: var(--white);
+    padding: 12px 30px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-size: 16px;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 15px rgba(140, 115, 86, 0.2);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    cursor: pointer;
+}
+
+.card-btn:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, var(--dark-gold), var(--brown));
+    transition: all 0.4s ease;
+    z-index: -1;
+}
+
+.card-btn:hover:before {
+    left: 0;
+}
+
+.card-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(140, 115, 86, 0.3);
+}
+
+/* -------------------------- */
+
+.booking-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: var(--white);
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(140, 115, 86, 0.1);
+}
+
+.booking-table th, .booking-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--light-gold);
+}
+
+.booking-table th {
+    background: var(--light-gold);
+    color: var(--brown);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+}
+
+.booking-table tr:nth-child(even) {
+    background-color: rgba(233, 219, 188, 0.1);
+}
+
+.booking-table tr:hover {
+    background-color: rgba(233, 219, 188, 0.2);
+}
+
+.booking-table td {
+    color: var(--brown);
+    font-size: 15px;
+}
+
+.status-paid {
+    color: #4CAF50;
+    font-weight: 600;
+}
+
+.status-unpaid {
+    color: #f44336;
+    font-weight: 600;
+}
+
+.search-form {
+    background-color: var(--light-gold);
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.search-form .form-row {
+    margin-bottom: 15px;
+}
+
+.search-form .form-group {
+    margin: 0 5px;
+}
+
+.search-form .btn {
+    margin-top: 15px;
+}
+
+.search-title {
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.empty-result {
+    text-align: center;
+    padding: 30px;
+    color: var(--brown);
+    font-style: italic;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-tour {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.badge-motorbike {
+    background-color: #2196F3;
+    color: white;
+}
+
+.badge-all {
+    background-color: #9C27B0;
+    color: white;
+}
+
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 20px;
+    border: 1px solid #ddd;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+}
+
+.modal-header {
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+}
+
+.modal-footer {
+    padding-top: 10px;
+    margin-top: 20px;
+    border-top: 1px solid #ddd;
+    text-align: right;
+}
+
+/* ปรับปรุง radio button ใน edit modal */
+/* ปรับปรุง radio button ใน edit modal */
+.edit-form .radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin: 5px 0 15px;
+}
+
+.edit-form .radio-option {
+    display: flex;
+    align-items: center;
+    margin-right: 15px;
+    cursor: pointer;
+}
+
+.edit-form input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--gold);
+    border-radius: 50%;
+    margin-right: 8px;
+    position: relative;
+    cursor: pointer;
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background-color: white;
+}
+
+.edit-form input[type="radio"]:checked {
+    border-color: var(--dark-gold);
+}
+
+.edit-form input[type="radio"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px;
+    height: 10px;
+    background-color: var(--dark-gold);
+    border-radius: 50%;
+}
+
+.edit-form .radio-label {
+    font-size: 15px;
+    color: var(--brown);
+}
+
+/* ปรับปรุงรูปแบบของ edit modal */
+#editModal .modal-content {
+    background-color: var(--white);
+    border-radius: 10px;
+    padding: 30px;
+    max-width: 600px;
+    max-height: 85vh;
+    overflow-y: auto;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+#editModal .modal-header {
+    padding: 0 0 20px 0;
+    margin-bottom: 25px;
+    border-bottom: 1px solid var(--light-gold);
+    position: relative;
+}
+
+#editModal .modal-header h2 {
+    margin: 0;
+    color: var(--brown);
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+#editModal .close {
+    position: absolute;
+    right: 0;
+    top: 0;
+    font-size: 30px;
+    color: var(--brown);
+    opacity: 0.6;
+    transition: all 0.3s ease;
+}
+
+#editModal .close:hover {
+    opacity: 1;
+}
+
+#editModal .modal-footer {
+    padding: 25px 0 0 0;
+    margin-top: 30px;
+    border-top: 1px solid var(--light-gold);
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+}
+
+#editModal .card-btn {
+    min-width: 140px;
+    text-align: center;
+    padding: 10px 25px;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* ปรับปรุงรูปแบบของ input fields ใน edit form */
+.edit-form .form-group {
+    margin-bottom: 20px;
+}
+
+.edit-form label {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--brown);
+    margin-bottom: 8px;
+    display: block;
+}
+
+.edit-form input[type="text"],
+.edit-form input[type="number"],
+.edit-form input[type="date"],
+.edit-form input[type="time"],
+.edit-form select,
+.edit-form textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--light-gold);
+    border-radius: 5px;
+    background-color: var(--white);
+    color: var(--brown);
+    transition: all 0.3s ease;
+    font-size: 16px;
+    box-shadow: none;
+    outline: none;
+}
+
+.edit-form input[type="text"]:focus,
+.edit-form input[type="number"]:focus,
+.edit-form input[type="date"]:focus,
+.edit-form input[type="time"]:focus,
+.edit-form select:focus,
+.edit-form textarea:focus {
+    border-color: var(--dark-gold);
+    box-shadow: 0 0 0 2px rgba(212, 185, 140, 0.2);
+    outline: none;
+}
+
+/* ปรับแต่ง select boxes */
+.edit-form select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b69b67' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    padding-right: 30px;
+}
+
+/* ปรับแต่งพื้นหลัง modal */
+.modal {
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+/* ปรับปรุง radio button ในการ export */
+.export-form .radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.export-form .radio-option {
+    display: flex;
+    align-items: center;
+    margin-right: 15px;
+    cursor: pointer;
+}
+
+.export-form input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--gold);
+    border-radius: 50%;
+    margin-right: 8px;
+    position: relative;
+    cursor: pointer;
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background-color: white;
+}
+
+.export-form input[type="radio"]:checked {
+    border-color: var(--dark-gold);
+}
+
+.export-form input[type="radio"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px;
+    height: 10px;
+    background-color: var(--dark-gold);
+    border-radius: 50%;
+}
+
+.export-form .radio-label {
+    font-size: 15px;
+    color: var(--brown);
+}
+
+/* Styles for the export modal */
+#exportModal .modal-content {
+    background-color: var(--white);
+    border-radius: 10px;
+    padding: 25px;
+    max-width: 550px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+#exportModal .modal-header {
+    padding: 0 0 20px 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--light-gold);
+    position: relative;
+}
+
+#exportModal .modal-header h2 {
+    margin: 0;
+    color: var(--brown);
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+#exportModal .close {
+    position: absolute;
+    right: 0;
+    top: 0;
+    font-size: 30px;
+    color: var(--brown);
+    opacity: 0.6;
+    transition: all 0.3s ease;
+}
+
+#exportModal .close:hover {
+    opacity: 1;
+}
+
+#exportModal .modal-footer {
+    padding: 25px 0 0 0;
+    margin-top: 25px;
+    border-top: 1px solid var(--light-gold);
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+}
+
+#exportModal .card-btn {
+    min-width: 140px;
+    text-align: center;
+    padding: 10px 25px;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Styles for the export form */
+.export-form .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+    gap: 20px;
+}
+
+.export-form .form-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.export-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: var(--brown);
+    font-size: 16px;
+}
+
+.export-form input[type="date"],
+.export-form input[type="month"],
+.export-form input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--light-gold);
+    border-radius: 5px;
+    font-size: 14px;
+    color: var(--brown);
+    transition: all 0.3s ease;
+}
+
+.export-form input[type="date"]:focus,
+.export-form input[type="month"]:focus,
+.export-form input[type="number"]:focus {
+    outline: none;
+    border-color: var(--dark-gold);
+    box-shadow: 0 0 0 2px rgba(212, 185, 140, 0.2);
+}
+/* Alert styles */
+.alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+.alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.alert-danger {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.alert-info {
+    color: #0c5460;
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+}
+
+@media (max-width: 992px) {
+    .booking-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+/* เพิ่ม CSS นี้ในส่วน <style> */
+input[type="checkbox"] {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 20px !important;
+    height: 20px !important;
+    margin: 0 auto !important;
+    accent-color: #000000;
+    border: 2px solid #a97c50;
+    background-color: white;
+    border-radius: 4px; /* ทำให้ขอบมุมกลม */
+    transition: background-color 0.3s, border-color 0.3s; /* เพิ่ม transition เพื่อให้ดูสวยงามขึ้น */
+}
+
+/* เมื่อเลือก checkbox */
+input[type="checkbox"]:checked {
+    background-color: #a97c50; /* เปลี่ยนสีพื้นหลังเมื่อเลือก */
+    border-color: #000000; /* เปลี่ยนสีขอบเมื่อเลือก */
+}
+
+/* ปรับให้ช่อง checkbox อยู่ตรงกลางของเซลล์ */
+.booking-table td:first-child {
+    text-align: center;
+    vertical-align: middle; /* จัดตำแหน่งในแนวตั้ง */
+}
+
+/* Improved radio button styling for export modal */
+.export-form .radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.export-form .radio-option {
+    display: flex;
+    align-items: center;
+    margin-right: 15px;
+    cursor: pointer;
+}
+
+.export-form input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--gold);
+    border-radius: 50%;
+    margin-right: 8px;
+    position: relative;
+    cursor: pointer;
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background-color: white;
+}
+
+.export-form input[type="radio"]:checked {
+    border-color: var(--dark-gold);
+}
+
+.export-form input[type="radio"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px;
+    height: 10px;
+    background-color: var(--dark-gold);
+    border-radius: 50%;
+}
+
+.export-form .radio-label {
+    font-size: 15px;
+    color: var(--brown);
+}
+
+/* Improve export modal styling */
+#exportModal .modal-content {
+    background-color: var(--white);
+    border-radius: 10px;
+    padding: 25px;
+    max-width: 550px;
+}
+
+#exportModal .modal-header {
+    border-bottom: 1px solid var(--light-gold);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+#exportModal .modal-header h2 {
+    color: var(--brown);
+    font-weight: 500;
+}
+
+#exportModal .modal-footer {
+    margin-top: 25px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+#exportModal .btn {
+    margin: 0;
+    min-width: 120px;
+}
+
+/* Adjust date inputs in export form */
+.export-form input[type="date"],
+.export-form input[type="month"],
+.export-form input[type="number"] {
+    border: 1px solid var(--light-gold);
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--brown);
+}
+
+.export-form input[type="date"]:focus,
+.export-form input[type="month"]:focus,
+.export-form input[type="number"]:focus {
+    outline: none;
+    border-color: var(--dark-gold);
+    box-shadow: 0 0 0 2px rgba(212, 185, 140, 0.2);
+}

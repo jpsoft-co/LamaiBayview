@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/P0_style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/loading.css') }}">    
+
+    <title>Data Management</title>
+    <style>
+        :root {
+            --gold: #d4b98c;
+            --light-gold: #e9dbbc;
+            --dark-gold: #b69b67;
+            --brown: #8c7356;
+            --light-brown: #a48c73;
+            --cream: #f9f5eb;
+            --white: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Cormorant Garamond', 'Playfair Display', serif;
+        }
+
+        body {
+            background-color: var(--cream);
+            color: var(--brown);
+            min-height: 100vh;
+            padding: 20px;
+            background-image: linear-gradient(45deg, var(--cream) 25%, var(--white) 25%, var(--white) 50%, var(--cream) 50%, var(--cream) 75%, var(--white) 75%, var(--white) 100%);
+            background-size: 60px 60px;
+            background-attachment: fixed;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: var(--white);
+            border-radius: 12px;
+            box-shadow: 0 15px 30px rgba(140, 115, 86, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--gold), var(--dark-gold));
+            color: var(--white);
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            background-color: var(--light-gold);
+            border-bottom: 2px solid var(--gold);
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            background-color: var(--light-gold);
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--brown);
+            font-family: inherit;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            background-color: var(--white);
+            border-bottom-color: var(--gold);
+            font-weight: bold;
+        }
+
+        .tab:hover {
+            background-color: var(--white);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border: 1px solid var(--light-gold);
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--white);
+        }
+
+        th {
+            background: linear-gradient(135deg, var(--gold), var(--dark-gold));
+            color: var(--white);
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+            letter-spacing: 1px;
+            border-bottom: 2px solid var(--dark-gold);
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--light-gold);
+            vertical-align: middle;
+        }
+
+        tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        tr:hover {
+            background-color: var(--light-gold);
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--light-gold);
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--brown);
+            background-color: var(--white);
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 5px rgba(212, 185, 140, 0.3);
+        }
+
+        .new-row {
+            background-color: var(--cream) !important;
+        }
+
+        .new-row td {
+            border-top: 2px solid var(--gold);
+            border-bottom: 2px solid var(--gold);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            margin: 0 2px;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, var(--gold), var(--dark-gold));
+            color: var(--white);
+            font-weight: bold;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(140, 115, 86, 0.3);
+        }
+
+        .btn-delete {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background-color: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .actions-container {
+            text-align: center;
+            padding: 20px;
+            background-color: var(--cream);
+            border-top: 1px solid var(--light-gold);
+        }
+
+        .message {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .tab {
+                font-size: 14px;
+                padding: 12px 15px;
+            }
+            
+            table {
+                font-size: 14px;
+            }
+            
+            th, td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+		<!-- Wrapper -->
+        <div id="wrapper">
+            <!-- Header -->
+                <header id="header">
+                    <h1>
+                        <a href="home">Lamai Bayview Boutique Resort</a>
+                    </h1>
+                    <nav class="main">
+                        <ul>
+                            <li class="menu">
+                                <a class="fa-bars" href="#menu">Menu</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </header>
+
+            <!-- Menu -->
+                <section id="menu">
+
+                    <!-- Links -->
+                        <section>
+                            <ul class="links">
+                                <li>
+                                    <a href="tour_and_motorbike_form">
+                                        <h3 style="color: #000000;">Tour & Motorbike Rental</h3>
+                                        <p>click for view the form</p>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="home_transfer_form">
+                                        <h3 style="color: #000000;">Home Transfer</h3>
+                                        <p>click for view the form</p>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="data_management">
+                                        <h3 style="color: #000000;">Setting</h3>
+                                        <p>click for setting tabel data (admin only-access)</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </section>
+
+                        
+
+                        <!-- Actions -->
+                        <section>
+                            <a href="javascript:void(0);" 
+                            data-href="{{ url_for('logout') }}"
+                            data-message="Logging out..."
+                            class="card-btn loading-btn" 
+                            style="display: flex; justify-content: center; align-items: center; height: 40px;"
+                            onclick="handleLogout(event, this)">
+                                Log out
+                            </a>
+                        </section>
+                </section>
+        </div>
+
+
+    <div class="container">
+        <div class="header">
+            <h1>Data Management</h1>
+            <p>Manage Tour, Motorbike, and Transfer Data</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="openTab(event, 'tour-tab')">Tour Data</button>
+            <button class="tab" onclick="openTab(event, 'motorbike-tab')">Motorbike Data</button>
+            <button class="tab" onclick="openTab(event, 'transfer-tab')">Transfer Data</button>
+        </div>
+
+        <!-- Tour Table -->
+        <div id="tour-tab" class="tab-content active">
+            <div id="tour-message"></div>
+            <div class="table-container">
+                <table id="tour-table">
+                    <thead>
+                        <tr>
+                            <th>Company Name</th>
+                            <th>Detail</th>
+                            <th>Received</th>
+                            <th>Paid</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tour-tbody">
+                        <!-- Existing data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="actions-container">
+                <button class="btn btn-submit" onclick="submitTourData()">Submit Changes</button>
+            </div>
+        </div>
+
+        <!-- Motorbike Table -->
+        <div id="motorbike-tab" class="tab-content">
+            <div id="motorbike-message"></div>
+            <div class="table-container">
+                <table id="motorbike-table">
+                    <thead>
+                        <tr>
+                            <th>Company Name</th>
+                            <th>Detail</th>
+                            <th>Received</th>
+                            <th>Paid</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="motorbike-tbody">
+                        <!-- Existing data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="actions-container">
+                <button class="btn btn-submit" onclick="submitMotorbikeData()">Submit Changes</button>
+            </div>
+        </div>
+
+        <!-- Transfer Table -->
+        <div id="transfer-tab" class="tab-content">
+            <div id="transfer-message"></div>
+            <div class="table-container">
+                <table id="transfer-table">
+                    <thead>
+                        <tr>
+                            <th>Place From</th>
+                            <th>Place To</th>
+                            <th>Passengers</th>
+                            <th>Received</th>
+                            <th>Paid</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transfer-tbody">
+                        <!-- Existing data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="actions-container">
+                <button class="btn btn-submit" onclick="submitTransferData()">Submit Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tourData = [];
+        let motorbikeData = [];
+        let transferData = [];
+
+        // Tab functionality
+        function openTab(evt, tabName) {
+            var i, tabcontent, tabs;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].classList.remove("active");
+            }
+            tabs = document.getElementsByClassName("tab");
+            for (i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove("active");
+            }
+            document.getElementById(tabName).classList.add("active");
+            evt.currentTarget.classList.add("active");
+        }
+
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTourData();
+            loadMotorbikeData();
+            loadTransferData();
+        });
+
+        // Show message
+        function showMessage(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 3000);
+        }
+
+        // Tour Data Functions
+        function loadTourData() {
+            fetch('/api/tour_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        tourData = data.data;
+                        renderTourTable();
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function renderTourTable() {
+            const tbody = document.getElementById('tour-tbody');
+            tbody.innerHTML = '';
+            
+            // Render existing data
+            tourData.forEach((item, index) => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td><input type="text" value="${item.company_name}" onchange="updateTourData(${index}, 'company_name', this.value)"></td>
+                    <td><input type="text" value="${item.detail}" onchange="updateTourData(${index}, 'detail', this.value)"></td>
+                    <td><input type="number" step="0.01" value="${item.received}" onchange="updateTourData(${index}, 'received', this.value)"></td>
+                    <td><input type="number" step="0.01" value="${item.paid}" onchange="updateTourData(${index}, 'paid', this.value)"></td>
+                    <td><button class="btn btn-delete" onclick="deleteTourRow(${index})">Delete</button></td>
+                `;
+            });
+            
+            // Add new row
+            const newRow = tbody.insertRow();
+            newRow.className = 'new-row';
+            newRow.innerHTML = `
+                <td><input type="text" id="tour-new-company" placeholder="Enter company name"></td>
+                <td><input type="text" id="tour-new-detail" placeholder="Enter detail"></td>
+                <td><input type="number" step="0.01" id="tour-new-received" placeholder="0.00"></td>
+                <td><input type="number" step="0.01" id="tour-new-paid" placeholder="0.00"></td>
+                <td><button class="btn btn-submit" onclick="addNewTourRow()">Add</button></td>
+            `;
+        }
+
+        function updateTourData(index, field, value) {
+            tourData[index][field] = field === 'received' || field === 'paid' ? parseFloat(value) || 0 : value;
+        }
+
+        function addNewTourRow() {
+            const company = document.getElementById('tour-new-company').value;
+            const detail = document.getElementById('tour-new-detail').value;
+            const received = parseFloat(document.getElementById('tour-new-received').value) || 0;
+            const paid = parseFloat(document.getElementById('tour-new-paid').value) || 0;
+            
+            if (company && detail) {
+                tourData.push({ id: null, company_name: company, detail: detail, received: received, paid: paid });
+                renderTourTable();
+            } else {
+                showMessage('tour-message', 'Please fill in company name and detail', 'error');
+            }
+        }
+
+        function deleteTourRow(index) {
+            if (confirm('Are you sure you want to delete this row?')) {
+                tourData.splice(index, 1);
+                renderTourTable();
+            }
+        }
+
+        function submitTourData() {
+            fetch('/api/update_tour_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: tourData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('tour-message', 'Tour data updated successfully!', 'success');
+                    loadTourData();
+                } else {
+                    showMessage('tour-message', data.message || 'Error updating data', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('tour-message', 'Error updating data', 'error');
+                console.error('Error:', error);
+            });
+        }
+
+        // Motorbike Data Functions
+        function loadMotorbikeData() {
+            fetch('/api/motorbike_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        motorbikeData = data.data;
+                        renderMotorbikeTable();
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function renderMotorbikeTable() {
+            const tbody = document.getElementById('motorbike-tbody');
+            tbody.innerHTML = '';
+            
+            // Render existing data
+            motorbikeData.forEach((item, index) => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td><input type="text" value="${item.company_name}" onchange="updateMotorbikeData(${index}, 'company_name', this.value)"></td>
+                    <td><input type="text" value="${item.detail}" onchange="updateMotorbikeData(${index}, 'detail', this.value)"></td>
+                    <td><input type="number" step="0.01" value="${item.received}" onchange="updateMotorbikeData(${index}, 'received', this.value)"></td>
+                    <td><input type="number" step="0.01" value="${item.paid}" onchange="updateMotorbikeData(${index}, 'paid', this.value)"></td>
+                    <td><button class="btn btn-delete" onclick="deleteMotorbikeRow(${index})">Delete</button></td>
+                `;
+            });
+            
+            // Add new row
+            const newRow = tbody.insertRow();
+            newRow.className = 'new-row';
+            newRow.innerHTML = `
+                <td><input type="text" id="motorbike-new-company" placeholder="Enter company name"></td>
+                <td><input type="text" id="motorbike-new-detail" placeholder="Enter detail"></td>
+                <td><input type="number" step="0.01" id="motorbike-new-received" placeholder="0.00"></td>
+                <td><input type="number" step="0.01" id="motorbike-new-paid" placeholder="0.00"></td>
+                <td><button class="btn btn-submit" onclick="addNewMotorbikeRow()">Add</button></td>
+            `;
+        }
+
+        function updateMotorbikeData(index, field, value) {
+            motorbikeData[index][field] = field === 'received' || field === 'paid' ? parseFloat(value) || 0 : value;
+        }
+
+        function addNewMotorbikeRow() {
+            const company = document.getElementById('motorbike-new-company').value;
+            const detail = document.getElementById('motorbike-new-detail').value;
+            const received = parseFloat(document.getElementById('motorbike-new-received').value) || 0;
+            const paid = parseFloat(document.getElementById('motorbike-new-paid').value) || 0;
+            
+            if (company && detail) {
+                motorbikeData.push({ id: null, company_name: company, detail: detail, received: received, paid: paid });
+                renderMotorbikeTable();
+            } else {
+                showMessage('motorbike-message', 'Please fill in company name and detail', 'error');
+            }
+        }
+
+        function deleteMotorbikeRow(index) {
+            if (confirm('Are you sure you want to delete this row?')) {
+                motorbikeData.splice(index, 1);
+                renderMotorbikeTable();
+            }
+        }
+
+        function submitMotorbikeData() {
+            fetch('/api/update_motorbike_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: motorbikeData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('motorbike-message', 'Motorbike data updated successfully!', 'success');
+                    loadMotorbikeData();
+                } else {
+                    showMessage('motorbike-message', data.message || 'Error updating data', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('motorbike-message', 'Error updating data', 'error');
+                console.error('Error:', error);
+            });
+        }
+
+        // Transfer Data Functions
+        function loadTransferData() {
+            fetch('/api/transfer_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        transferData = data.data;
+                        renderTransferTable();
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function renderTransferTable() {
+            const tbody = document.getElementById('transfer-tbody');
+            tbody.innerHTML = '';
+            
+            // Render existing data
+            transferData.forEach((item, index) => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td><input type="text" value="${item.place_from}" onchange="updateTransferData(${index}, 'place_from', this.value)"></td>
+                    <td><input type="text" value="${item.place_to}" onchange="updateTransferData(${index}, 'place_to', this.value)"></td>
+                    <td><input type="number" value="${item.passengers}" onchange="updateTransferData(${index}, 'passengers', this.value)"></td>
+                    <td><input type="number" step="0.01" value="${item.received}" onchange="updateTransferData(${index}, 'received', this.value)"></td>
+                    <td><input type="number" step="0.01" value="${item.paid}" onchange="updateTransferData(${index}, 'paid', this.value)"></td>
+                    <td><button class="btn btn-delete" onclick="deleteTransferRow(${index})">Delete</button></td>
+                `;
+            });
+            
+            // Add new row
+            const newRow = tbody.insertRow();
+            newRow.className = 'new-row';
+            newRow.innerHTML = `
+                <td><input type="text" id="transfer-new-from" placeholder="Enter place from"></td>
+                <td><input type="text" id="transfer-new-to" placeholder="Enter place to"></td>
+                <td><input type="number" id="transfer-new-passengers" placeholder="0"></td>
+                <td><input type="number" step="0.01" id="transfer-new-received" placeholder="0.00"></td>
+                <td><input type="number" step="0.01" id="transfer-new-paid" placeholder="0.00"></td>
+                <td><button class="btn btn-submit" onclick="addNewTransferRow()">Add</button></td>
+            `;
+        }
+
+        function updateTransferData(index, field, value) {
+            transferData[index][field] = field === 'received' || field === 'paid' ? parseFloat(value) || 0 : 
+                                       field === 'passengers' ? parseInt(value) || 0 : value;
+        }
+
+        function addNewTransferRow() {
+            const place_from = document.getElementById('transfer-new-from').value;
+            const place_to = document.getElementById('transfer-new-to').value;
+            const passengers = parseInt(document.getElementById('transfer-new-passengers').value) || 0;
+            const received = parseFloat(document.getElementById('transfer-new-received').value) || 0;
+            const paid = parseFloat(document.getElementById('transfer-new-paid').value) || 0;
+            
+            if (place_from && place_to) {
+                transferData.push({ id: null, place_from: place_from, place_to: place_to, passengers: passengers, received: received, paid: paid });
+                renderTransferTable();
+            } else {
+                showMessage('transfer-message', 'Please fill in place from and place to', 'error');
+            }
+        }
+
+        function deleteTransferRow(index) {
+            if (confirm('Are you sure you want to delete this row?')) {
+                transferData.splice(index, 1);
+                renderTransferTable();
+            }
+        }
+
+        function submitTransferData() {
+            fetch('/api/update_transfer_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: transferData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('transfer-message', 'Transfer data updated successfully!', 'success');
+                    loadTransferData();
+                } else {
+                    showMessage('transfer-message', data.message || 'Error updating data', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('transfer-message', 'Error updating data', 'error');
+                console.error('Error:', error);
+            });
+        }
+    </script>
+<script src="static/assets/js/jquery.min.js"></script>
+<script src="static/assets/js/browser.min.js"></script>
+<script src="static/assets/js/breakpoints.min.js"></script>
+<script src="static/assets/js/util.js"></script>
+<script src="static/assets/js/main.js"></script>
+<script src="{{ url_for('static', filename='js/loading.js') }}"></script>
+
+
+</body>
+</html>

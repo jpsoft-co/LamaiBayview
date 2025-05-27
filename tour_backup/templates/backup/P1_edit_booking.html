@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/P1P2_style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}">
+    <title>Edit Tour & Motorbike Booking</title>
+    <style>
+        .status-paid {
+            color: #4CAF50;
+            font-weight: 600;
+        }
+        
+        .status-unpaid {
+            color: #f44336;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <!-- Wrapper -->
+    <div id="wrapper">
+        <!-- Header -->
+        <header id="header">
+            <h1>
+                <a href="{{ url_for('home') }}">Lamai Bayview Boutique Resort</a>
+            </h1>
+            <nav class="main">
+                <ul>
+                    <li class="menu">
+                        <a class="fa-bars" href="#menu">Menu</a>
+                    </li>
+                </ul>
+            </nav>
+        </header>
+
+        <!-- Menu -->
+        <section id="menu">
+            <!-- Links -->
+            <section>
+                <ul class="links">
+                    <li>
+                        <a href="{{ url_for('tour_and_motorbike_form') }}">
+                            <h3 style="color: #000000;">Tour & Motorbike Rental</h3>
+                            <p>view all bookings</p>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="home_transfer_form">
+                            <h3 style="color: #000000;">Home Transfer</h3>
+                            <p>click for view the form</p>
+                        </a>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Actions -->
+            <section>
+                <a href="{{ url_for('login') }}" 
+                class="card-btn" 
+                style="display: flex; justify-content: center; align-items: center; height: 40px;">
+                Log out
+                </a>
+            </section>
+        </section>
+    </div>
+
+    <div class="container">
+        <div class="form-wrapper">
+            <div class="gold-accent"></div>
+            <div class="form-header">
+                <h1>Lamai Bayview Boutique Resort</h1>
+                <p>Edit Tour & Motorbike Booking</p>
+            </div>
+            
+            <div class="form-body">
+                <form action="{{ url_for('edit_booking', booking_no=booking.booking_no) }}" method="POST">
+                    <div class="booking-info">
+                        <h3>Booking #{{ booking.booking_no }}</h3>
+                        <p>Original Booking Date: {{ booking.booking_date }}</p>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h4>Customer Information</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="name">Name</label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ booking.customer_name }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="surname">Surname</label>
+                                <input type="text" class="form-control" id="surname" name="surname" value="{{ booking.customer_surname }}" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="room">Room</label>
+                                <select class="form-control" id="room" name="room" required>
+                                    {% for room_number in room %}
+                                    <option value="{{ room_number }}" {% if room_number == booking.room %}selected{% endif %}>{{ room_number }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h4>Booking Details</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="experienceType">Experience Type</label>
+                                <select class="form-control" id="experienceType" name="experienceType" required>
+                                    <option value="tour" {% if booking.experience_type == 'tour' %}selected{% endif %}>Tour</option>
+                                    <option value="motorbike" {% if booking.experience_type == 'motorbike' %}selected{% endif %}>Motorbike Rental</option>
+                                    <option value="all" {% if booking.experience_type == 'all' %}selected{% endif %}>Both (Tour & Motorbike)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="company">Company Name</label>
+                                <input type="text" class="form-control" id="company" name="company" value="{{ booking.company_name }}">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="detail">Detail</label>
+                                <input type="text" class="form-control" id="detail" name="detail" value="{{ booking.detail }}">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="date">Travel Date</label>
+                                <input type="date" class="form-control" id="date" name="date" value="{{ booking.travel_date }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="time">Pickup Time</label>
+                                <input type="time" class="form-control" id="time" name="time" value="{{ booking.pickup_time }}">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="persons">Quantity (Persons/Bikes)</label>
+                                <input type="number" class="form-control" id="persons" name="persons" value="{{ booking.quantity }}" min="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="price">Received (THB)</label>
+                                <input type="number" class="form-control" id="price" name="price" value="{{ booking.received }}" min="0" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="status">Payment Status</label>
+                                <select class="form-control" id="status" name="status" required>
+                                    <option value="paid" {% if booking.payment_status == 'paid' %}selected{% endif %}>Paid</option>
+                                    <option value="unpaid" {% if booking.payment_status == 'unpaid' %}selected{% endif %}>Unpaid</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="staffName">Staff Name</label>
+                                <input type="text" class="form-control" id="staffName" name="staffName" value="{{ booking.staff_name }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions" style="text-align: center; margin-top: 30px;">
+                        <button type="submit" class="card-btn">Save Changes</button>
+                        <a href="{{ url_for('tour_and_motorbike_form') }}" class="card-btn">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,294 @@
+/* Loading System CSS - แยกไฟล์ loading-system.css */
+
+/* CSS Variables สำหรับ Loading (ถ้าไม่มีในไฟล์หลัก) */
+:root {
+    --gold: #d4b98c;
+    --light-gold: #e9dbbc;
+    --dark-gold: #b69b67;
+    --brown: #8c7356;
+    --light-brown: #a48c73;
+    --cream: #f9f5eb;
+    --white: #ffffff;
+}
+
+/* Loading Overlay Styles */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(249, 245, 235, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+.loading-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.loading-content {
+    background-color: var(--white);
+    padding: 40px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 15px 30px rgba(140, 115, 86, 0.15);
+    position: relative;
+    max-width: 400px;
+    width: 90%;
+    border: 1px solid var(--light-gold);
+}
+
+.loading-spinner {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+}
+
+.loading-spinner:before,
+.loading-spinner:after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+}
+
+.loading-spinner:before {
+    width: 80px;
+    height: 80px;
+    border: 3px solid var(--light-gold);
+    border-top-color: var(--gold);
+    border-right-color: var(--dark-gold);
+    animation: spin 1.5s linear infinite;
+}
+
+.loading-spinner:after {
+    width: 70px;
+    height: 70px;
+    border: 3px solid transparent;
+    border-bottom-color: var(--brown);
+    border-left-color: var(--light-brown);
+    animation: spin-reverse 1s ease-in-out infinite;
+}
+
+.loading-message {
+    color: var(--brown);
+    font-size: 18px;
+    margin-top: 15px;
+    letter-spacing: 1px;
+    font-family: 'Cormorant Garamond', 'Playfair Display', serif;
+    font-weight: 300;
+}
+
+.loading-progress {
+    width: 100%;
+    height: 4px;
+    background-color: var(--light-gold);
+    margin-top: 20px;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.loading-progress-bar {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(to right, var(--gold), var(--dark-gold));
+    transition: width 0.3s ease;
+    border-radius: 10px;
+    position: relative;
+}
+
+.loading-progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.4),
+        transparent
+    );
+    animation: shimmer 1.5s infinite;
+}
+
+/* Animations */
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes spin-reverse {
+    0% {
+        transform: rotate(360deg);
+    }
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.loading-content {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .loading-content {
+        padding: 30px 20px;
+        max-width: 300px;
+    }
+    
+    .loading-spinner {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .loading-spinner:before {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .loading-spinner:after {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .loading-message {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .loading-content {
+        padding: 25px 15px;
+        max-width: 280px;
+    }
+    
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        margin-bottom: 15px;
+    }
+    
+    .loading-spinner:before {
+        width: 50px;
+        height: 50px;
+        border-width: 2px;
+    }
+    
+    .loading-spinner:after {
+        width: 40px;
+        height: 40px;
+        border-width: 2px;
+    }
+    
+    .loading-message {
+        font-size: 14px;
+        margin-top: 10px;
+    }
+    
+    .loading-progress {
+        height: 3px;
+        margin-top: 15px;
+    }
+}
+
+/* Alternative Loading Styles */
+.loading-overlay.dark-theme {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+.loading-overlay.dark-theme .loading-content {
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+}
+
+.loading-overlay.dark-theme .loading-message {
+    color: #ffffff;
+}
+
+.loading-overlay.minimal {
+    background-color: rgba(255, 255, 255, 0.9);
+}
+
+.loading-overlay.minimal .loading-content {
+    background: transparent;
+    box-shadow: none;
+    border: none;
+}
+
+/* Button Loading State */
+.loading-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.loading-btn.loading {
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.loading-btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.4),
+        transparent
+    );
+    animation: button-loading 1.5s infinite;
+}
+
+@keyframes button-loading {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}

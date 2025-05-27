@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/P0_style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/loading.css') }}">    
+    <link rel="stylesheet" href="static/assets/css/main.css" />
+    <title>Luxury Services - Home</title>
+    <style>
+    </style>
+</head>
+<body data-user-role="{{ session.role }}">
+		<!-- Wrapper -->
+        <div id="wrapper">
+            <!-- Header -->
+                <header id="header">
+                    <h1>
+                        <a href="home">Lamai Bayview Boutique Resort</a>
+                    </h1>
+                    <nav class="main">
+                        <ul>
+                            <li class="menu">
+                                <a class="fa-bars" href="#menu">Menu</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </header>
+
+            <!-- Menu -->
+                <section id="menu">
+
+                    <!-- Links -->
+                        <section>
+                            <ul class="links">
+                                <li>
+                                    <a href="tour_and_motorbike_form">
+                                        <h3 style="color: #000000;">Tour & Motorbike Rental</h3>
+                                        <p>click for view the form</p>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="home_transfer_form">
+                                        <h3 style="color: #000000;">Home Transfer</h3>
+                                        <p>click for view the form</p>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="data_management">
+                                        <h3 style="color: #000000;">Setting</h3>
+                                        <p>click for setting tabel data (admin only-access)</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </section>
+
+                        
+
+                        <!-- Actions -->
+                        <section>
+                            <a href="javascript:void(0);" 
+                            data-href="{{ url_for('logout') }}"
+                            data-message="Logging out..."
+                            class="card-btn loading-btn" 
+                            style="display: flex; justify-content: center; align-items: center; height: 40px;"
+                            onclick="handleLogout(event, this)">
+                                Log out
+                            </a>
+                        </section>
+                </section>
+        </div>
+        
+        <div class="container">
+            <div class="gold-accent"></div>
+            
+            <div class="card-container">
+                <!-- Tour & Motorbike Rental Card -->
+                <div class="card">
+                    <div class="card-image">
+                        <img src="/static/image/tour_motorr.png" alt="Tour & Motorbike Rental">
+                        <div class="card-overlay"></div>
+                    </div>
+                    <div class="card-content">
+                        <h2 class="card-title">Tour & Motorbike Rental</h2>
+                        <p class="card-description">Click to book the Tour & Motorbike Rental!</p>
+                        <a href="javascript:void(0);" class="card-btn" data-href="home_tour_and_motorbike_rental">Booking</a>
+                    </div>
+                </div>
+                
+                <!-- Transfer Card -->
+                <div class="card">
+                    <div class="card-image">
+                        <img src="/static/image/home_transfer.png" alt="Transfer Services">
+                        <div class="card-overlay"></div>
+                    </div>
+                    <div class="card-content">
+                        <h2 class="card-title">Transfer Services</h2>
+                        <p class="card-description">Click to request a home/room transfer!</p>
+                        <a href="javascript:void(0);" class="card-btn" data-href="home_transfer">Booking</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+</body>
+<script src="{{ url_for('static', filename='js/P0_script.js') }}"></script>
+<script src="{{ url_for('static', filename='js/setting_protection.js') }}"></script>
+
+<!-- Scripts -->
+<script src="static/assets/js/jquery.min.js"></script>
+<script src="static/assets/js/browser.min.js"></script>
+<script src="static/assets/js/breakpoints.min.js"></script>
+<script src="static/assets/js/util.js"></script>
+<script src="static/assets/js/main.js"></script>
+<script src="{{ url_for('static', filename='js/loading.js') }}"></script>
+
+
+
+</html>

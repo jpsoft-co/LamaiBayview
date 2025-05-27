@@ -1,0 +1,40 @@
+document.addEventListener('DOMContentLoaded', function() {
+    // Calculate total when price or persons change
+    const priceInput = document.getElementById('price');
+    const personsInput = document.getElementById('persons');
+    const totalInput = document.getElementById('total');
+    
+    function calculateTotal() {
+        const price = parseFloat(priceInput.value) || 0;
+        const persons = parseInt(personsInput.value) || 0;
+        const total = price * persons;
+        totalInput.value = total.toFixed(2);
+    }
+    
+    priceInput.addEventListener('input', calculateTotal);
+    personsInput.addEventListener('input', calculateTotal);
+    
+    // Form submission
+    const form = document.getElementById('luxuryBookingForm');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Here you would typically send the form data to a server
+        // For now, let's just show an alert
+        alert('Booking submitted successfully!');
+        
+        // Optionally clear the form
+        // form.reset();
+    });
+    
+    // Date validation - ensure "to" date is after "from" date
+    const searchDate = document.getElementById('searchDate');
+    const searchDateTo = document.getElementById('searchDateTo');
+    
+    searchDate.addEventListener('change', function() {
+        searchDateTo.min = searchDate.value;
+        if (searchDateTo.value && searchDateTo.value < searchDate.value) {
+            searchDateTo.value = searchDate.value;
+        }
+    });
+});

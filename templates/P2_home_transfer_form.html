@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/P1P2_style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/notification_style.css') }}">    
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print_styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/loading.css') }}">    
+
+<style>
+    /* CSS Variables */
+:root {
+    --dark-gold: #B8860B;
+    --brown: #8B4513;
+    --white: #ffffff;
+}
+
+/* Notification Container */
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    pointer-events: none;
+}
+
+/* Base Notification Styles */
+.notification {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    padding: 16px 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    max-width: 400px;
+    min-width: 300px;
+    position: relative;
+    pointer-events: all;
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    overflow: hidden;
+}
+
+.notification.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.notification.remove {
+    opacity: 0;
+    transform: translateX(100%);
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 0;
+}
+
+/* Icon Styles */
+.notification-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+/* Content Styles */
+.notification-content {
+    flex: 1;
+    color: #333;
+}
+
+.notification-message {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+/* Close Button */
+.notification-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.notification-close:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+    color: #666;
+}
+
+/* Progress Bar */
+.notification-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.notification-progress-bar {
+    height: 100%;
+    width: 0%;
+    transition: width linear;
+}
+
+/* Type-specific styles */
+.notification.success .notification-icon {
+    background-color: #28a745; /* สีเขียว */
+}
+
+.notification.success .notification-progress-bar {
+    background-color: #28a745;
+}
+
+.notification.error .notification-icon {
+    background-color: #dc3545; /* สีแดง */
+}
+
+.notification.error .notification-progress-bar {
+    background-color: #dc3545;
+}
+
+.notification.info .notification-icon {
+    background-color: #17a2b8; /* สีฟ้า */
+}
+
+.notification.info .notification-progress-bar {
+    background-color: #17a2b8;
+}
+
+.notification.warning .notification-icon {
+    background-color: #ffc107; /* สีเหลือง */
+    color: #333; /* เปลี่ยนสีข้อความเป็นดำสำหรับ warning */
+}
+
+.notification.warning .notification-progress-bar {
+    background-color: #ffc107;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .notification-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+    }
+
+    .notification {
+        max-width: none;
+        min-width: auto;
+        margin-bottom: 10px;
+    }
+}
+
+/* Animation for stacked notifications */
+.notification:nth-child(n+4) {
+    transform: translateX(100%) scale(0.95);
+    opacity: 0.7;
+}
+
+.notification.show:nth-child(n+4) {
+    transform: translateX(0) scale(0.95);
+}
+
+/* Enhanced hover effects */
+.notification:hover {
+    transform: translateX(-5px) scale(1.02);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.notification.show:hover {
+    transform: translateX(-5px) scale(1.02);
+}
+
+/* Glassmorphism effect */
+.notification {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Dark theme support (optional) */
+@media (prefers-color-scheme: dark) {
+    .notification {
+        background: rgba(40, 40, 40, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .notification-content {
+        color: #fff;
+    }
+    
+    .notification-close {
+        color: #ccc;
+    }
+    
+    .notification-close:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #fff;
+    }
+}
+</style>
+    <title>View Home Transfer Bookings</title>
+</head>
+<body data-user-role="{{ session.role }}">
+		<!-- Wrapper -->
+        <div id="wrapper">
+            <!-- Header -->
+                <header id="header">
+                    <h1>
+                        <a href="home">Lamai Bayview Boutique Resort</a>
+                    </h1>
+                    <nav class="main">
+                        <ul>
+                            <li class="menu">
+                                <a class="fa-bars" href="#menu">Menu</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </header>
+
+            <!-- Menu -->
+                <section id="menu">
+
+                    <!-- Links -->
+                        <section>
+                            <ul class="links">
+                                <li>
+                                    <a href="tour_and_motorbike_form">
+                                        <h3 style="color: #000000;">Tour & Motorbike Rental</h3>
+                                        <p>click for view the form</p>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="home_transfer_form">
+                                        <h3 style="color: #000000;">Home Transfer</h3>
+                                        <p>click for view the form</p>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="data_management">
+                                        <h3 style="color: #000000;">Setting</h3>
+                                        <p>click for setting tabel data (admin only-access)</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </section>
+
+                        
+
+                        <!-- Actions -->
+                        <section>
+                            <a href="javascript:void(0);" 
+                            data-href="{{ url_for('logout') }}"
+                            data-message="Logging out..."
+                            class="card-btn loading-btn" 
+                            style="display: flex; justify-content: center; align-items: center; height: 40px;"
+                            onclick="handleLogout(event, this)">
+                                Log out
+                            </a>
+                        </section>
+                </section>
+        </div>
+
+    <div class="container">
+        <div class="form-wrapper">
+            <div class="gold-accent"></div>
+            <div class="form-header">
+                <h1>Lamai Bayview Boutique Resort</h1>
+                <p>Home Transfer Booking Management</p>
+            </div>
+            
+            <div class="form-body">
+                <!-- ฟอร์มค้นหา -->
+                <form action="{{ url_for('search_transfer_bookings') }}" method="POST" class="search-form">
+                    <h3 class="search-title">Search Transfers</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="start_date">From Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ search_start_date if search_start_date else '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="end_date">To Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ search_end_date if search_end_date else '' }}">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Transfer Type</label>
+                            <div class="radio-group">
+                                <label class="radio-option">
+                                    <input type="radio" name="searchType" class="radio-input" value="departure" checked>
+                                    <span class="radio-label">Departure</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="searchType" class="radio-input" value="arrivals">
+                                    <span class="radio-label">Arrivals</span>
+                                </label>
+                                <label class="radio-option">
+                                    <input type="radio" name="searchType" class="radio-input" value="all">
+                                    <span class="radio-label">All</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn">Search</button>
+                </form>
+
+                <!-- ตารางแสดงการจอง -->
+                <div class="table-container">
+                    <form id="actionForm" method="POST">
+                        {% if transfers|default([])|length > 0 %}
+                        <table class="booking-table">
+                            <thead>
+                                <tr>
+                                    <th>SELECT</th>
+                                    <th>Travel Date</th>
+                                    <th>Time</th>
+                                    <th>Booking No.</th>
+                                    <th>Name & Surname</th>
+                                    <th>Type</th>
+                                    <th>From</th>
+                                    <th>To</th>
+                                    <th>Detail</th>
+                                    <th>Person</th>
+                                    <th>Received</th>
+                                    <th>Status</th>
+                                    <th>Staff Name</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transfer in transfers %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" name="selected_bookings" value="{{ transfer.booking_no }}" style="width: 20px; height: 20px;">
+                                    </td>
+                                    <td>{{ transfer.travel_date }}</td>
+                                    <td>{{ transfer.pickup_time }}</td>
+                                    <td>{{ transfer.booking_no }}</td>                               
+                                    <td>{{ transfer.customer_name }} {{ transfer.customer_surname }}</td>
+                                    <td>
+                                        {% if transfer.departure %}
+                                        <span class="badge badge-departure">Departure</span>
+                                        {% elif transfer.arrivals %}
+                                        <span class="badge badge-arrivals">Arrivals</span>
+                                        {% else %}
+                                        <span class="badge">Unknown</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ transfer.place_from }}</td>
+                                    <td>{{ transfer.place_to }}</td>
+                                    <td>{{ transfer.detail }}</td>
+                                    <td>{{ transfer.quantity }}</td>
+                                    <td>{{ transfer.received }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if transfer.payment_status == 'paid' %}badge-success
+                                            {% elif transfer.payment_status == 'unpaid' %}badge-danger
+                                            {% else %}badge-secondary
+                                            {% endif %}">
+                                            {{ transfer.payment_status|title }}
+                                        </span>
+                                    </td>
+                                    <td>{{ transfer.staff_name }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <div class="empty-result">
+                            <p>No transfers found. Please try different search criteria.</p>
+                        </div>
+                        {% endif %}
+                    </form>
+                </div>
+
+                <!-- แสดงข้อความแจ้งเตือน -->
+                <div id="alert-container" style="display: none;" class="alert"></div>
+
+                <div style="margin-top: 30px; text-align: center;">
+                    <a class="card-btn" onclick="printToExcel()">Print to Excel</a>
+                    <a class="card-btn" id="cancelBtn" onclick="cancelTransfer()">Cancel</a>
+                    <a class="card-btn" id="editBtn" onclick="editTransfer()">Edit</a>
+                    <a class="card-btn" id="exportBtn" onclick="exportTransfer()">Export</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<!-- Modal สำหรับการแก้ไขข้อมูล -->
+<!-- Modal สำหรับการแก้ไขข้อมูล -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>Edit Transfer</h2>
+        </div>
+        <form id="editForm" class="edit-form">
+            <input type="hidden" id="edit_booking_no" name="booking_no">
+            
+            <div class="form-group">
+                <label for="edit_name">Name:</label>
+                <input type="text" id="edit_name" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_surname">Surname:</label>
+                <input type="text" id="edit_surname" name="surname" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Transfer Type:</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="edit_transferType" id="edit_transferType_departure" value="departure" onchange="updateEditTransferOptions()">
+                        <span class="radio-label">Departure</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="edit_transferType" id="edit_transferType_arrivals" value="arrivals" onchange="updateEditTransferOptions()">
+                        <span class="radio-label">Arrivals</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- แก้ไขส่วน From และ To ให้เป็น dropdown แบบ dynamic -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_place_from">From:</label>
+                    <div class="location-input">
+                        <!-- Dropdown for departure (resort to destination) -->
+                        <select class="form-control" id="edit_place_from_departure" name="place_from" style="display: none;">
+                            <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
+                        </select>
+                        
+                        <!-- Dropdown for arrival (origin to resort) -->
+                        <select class="form-control" id="edit_place_from_arrival" name="place_from" style="display: none;" onchange="updateEditPriceInfo()">
+                            <option value="">Select Origin</option>
+                            {% for origin in arrival_origins %}
+                            <option value="{{ origin.origin }}" 
+                                    data-passengers="{{ origin.passengers }}" 
+                                    data-price="{{ origin.received }}" 
+                                    data-paid="{{ origin.paid }}">
+                                {{ origin.origin }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        
+                        <!-- Fallback input field -->
+                        <input type="text" class="form-control" id="edit_place_from_input" name="place_from" style="display: none;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="edit_place_to">To:</label>
+                    <div class="location-input">
+                        <!-- Dropdown for departure (resort to destination) -->
+                        <select class="form-control" id="edit_place_to_departure" name="place_to" style="display: none;" onchange="updateEditPriceInfo()">
+                            <option value="">Select Destination</option>
+                            {% for destination in departure_destinations %}
+                            <option value="{{ destination.destination }}" 
+                                    data-passengers="{{ destination.passengers }}" 
+                                    data-price="{{ destination.received }}" 
+                                    data-paid="{{ destination.paid }}">
+                                {{ destination.destination }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        
+                        <!-- Dropdown for arrival (origin to resort) -->
+                        <select class="form-control" id="edit_place_to_arrival" name="place_to" style="display: none;">
+                            <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
+                        </select>
+                        
+                        <!-- Fallback input field -->
+                        <input type="text" class="form-control" id="edit_place_to_input" name="place_to" style="display: none;">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_time">Time:</label>
+                <input type="time" id="edit_time" name="time" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_travel_date">Travel Date:</label>
+                <input type="date" id="edit_travel_date" name="travel_date" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_persons">Person:</label>
+                <input type="number" id="edit_persons" name="persons" min="1" required onchange="calculateEditTotal()">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_price">Price per Person:</label>
+                <input type="number" id="edit_price" name="price" min="0" required onchange="calculateEditTotal()">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_received">Total Amount (Received):</label>
+                <input type="number" id="edit_received" name="received" min="0" required readonly>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_detail">Detail:</label>
+                <input type="text" id="edit_detail" name="detail">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_staffName">Staff Name:</label>
+                <input type="text" id="edit_staffName" name="staffName" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_driverName">Driver Name:</label>
+                <input type="text" id="edit_driverName" name="driverName">
+            </div>
+            
+            <div class="form-group">
+                <label for="edit_status">Payment Status:</label>
+                <select id="edit_status" name="status" required>
+                    <option value="paid">Paid</option>
+                    <option value="unpaid">Unpaid</option>
+                </select>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="card-btn" onclick="closeModal()">Cancel</button>
+                <button type="button" class="card-btn" onclick="saveTransfer()">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal สำหรับการ export ข้อมูล -->
+<div id="exportModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span class="close" onclick="closeExportModal()">&times;</span>
+            <h2>Export Transfers Data</h2>
+        </div>
+        <form id="exportForm" class="export-form">
+            <div class="form-group">
+                <label>Filter Type:</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="exportFilterType" value="date" checked onchange="toggleExportFields()">
+                        <span class="radio-label">Date Range</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="exportFilterType" value="month" onchange="toggleExportFields()">
+                        <span class="radio-label">Month Range</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="exportFilterType" value="year" onchange="toggleExportFields()">
+                        <span class="radio-label">Year Range</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Date Range Fields -->
+            <div id="dateRangeFields">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="export_start_date">From Date:</label>
+                        <input type="date" id="export_start_date" name="export_start_date">
+                    </div>
+                    <div class="form-group">
+                        <label for="export_end_date">To Date:</label>
+                        <input type="date" id="export_end_date" name="export_end_date">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Month Range Fields -->
+            <div id="monthRangeFields" style="display: none;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="export_start_month">From Month:</label>
+                        <input type="month" id="export_start_month" name="export_start_month">
+                    </div>
+                    <div class="form-group">
+                        <label for="export_end_month">To Month:</label>
+                        <input type="month" id="export_end_month" name="export_end_month">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Year Range Fields -->
+            <div id="yearRangeFields" style="display: none;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="export_start_year">From Year:</label>
+                        <input type="number" id="export_start_year" name="export_start_year" min="2000" max="2100" placeholder="YYYY">
+                    </div>
+                    <div class="form-group">
+                        <label for="export_end_year">To Year:</label>
+                        <input type="number" id="export_end_year" name="export_end_year" min="2000" max="2100" placeholder="YYYY">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Transfer Type:</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="exportTransferType" value="departure" checked>
+                        <span class="radio-label">Departure</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="exportTransferType" value="arrivals">
+                        <span class="radio-label">Arrivals</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="exportTransferType" value="all">
+                        <span class="radio-label">All</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Payment Status Filter - NEW -->
+            <div class="form-group">
+                <label>Payment Status:</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="exportPaymentStatus" value="paid">
+                        <span class="radio-label">Paid</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="exportPaymentStatus" value="unpaid">
+                        <span class="radio-label">Unpaid</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="exportPaymentStatus" value="partial">
+                        <span class="radio-label">Partial</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="exportPaymentStatus" value="all" checked>
+                        <span class="radio-label">All</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="card-btn" onclick="closeExportModal()">Cancel</button>
+                <button type="button" class="card-btn" onclick="submitExport()">Export to Excel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/P2_script.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
+    <script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/notification.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/setting_protection.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/loading.js') }}"></script>
+
+
+
+</body>
+</html>
