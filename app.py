@@ -32,11 +32,11 @@ def login_required(f):
 # Database connection
 def get_db_connection():
     return mysql.connector.connect(
-        host=os.environ.get("DB_HOST", "127.0.0.1"),
-        port=int(os.environ.get("DB_PORT", 3306)),
-        user=os.environ.get("DB_USER", "root"),
-        password=os.environ.get("DB_PASS", ""),
-        database=os.environ.get("DB_NAME", "booking_system")
+        host=os.getenv("DB_HOST"),
+        port=int(os.getenv("DB_PORT", 3306)),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASS"),
+        database=os.getenv("DB_NAME")
     )
 
 def load_data_from_file(filename):
