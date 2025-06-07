@@ -613,6 +613,11 @@ def search_tour_bookings():
         return f"Error: {str(e)}"
 
 # เพิ่ม route สำหรับการลบข้อมูล (cancel booking)
+# ===============================================
+# UPDATED CANCEL BOOKING ROUTES - UPDATE STATUS INSTEAD OF DELETE
+# ===============================================
+
+# เปลี่ยนฟังก์ชันยกเลิกการจอง Tour & Motorbike
 @app.route("/cancel_bookings", methods=["POST"])
 @login_required
 def cancel_bookings():
@@ -620,35 +625,132 @@ def cancel_bookings():
         # รับค่า booking_no ที่ถูกเลือกจากฟอร์ม
         selected_bookings = request.form.getlist('selected_bookings')
         
-        # ⚠️ เพิ่มตัวนี้ - รับประเภทจาก form
+        # รับประเภทจาก form
         booking_type = request.form.get('booking_type', 'tour')  # default เป็น tour
+        
+        # รับชื่อผู้ cancel
+        cancelled_by = request.form.get('cancelled_by', '').strip()
         
         if not selected_bookings:
             return jsonify({"success": False, "message": "No bookings selected"})
+        
+        if not cancelled_by:
+            return jsonify({"success": False, "message": "Cancellation name is required"})
         
         # เชื่อมต่อกับฐานข้อมูล
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # ⚠️ เลือกตารางตามประเภท
+        # เลือกตารางตามประเภท
         table_name = 'tour_rental' if booking_type == 'tour' else 'motorbike_rental'
         
-        # ลบข้อมูลที่ถูกเลือก
+        # อัพเดต payment_status แทนการลบ
         placeholders = ', '.join(['%s'] * len(selected_bookings))
-        query = f"DELETE FROM {table_name} WHERE booking_no IN ({placeholders})"
+        query = f"UPDATE {table_name} SET payment_status = %s WHERE booking_no IN ({placeholders})"
         
-        cursor.execute(query, selected_bookings)
+        # สร้าง status ใหม่
+        cancel_status = f"Cancelled by {cancelled_by}"
+        params = [cancel_status] + selected_bookings
+        
+        cursor.execute(query, params)
         conn.commit()
         
-        deleted_count = cursor.rowcount
+        updated_count = cursor.rowcount
         
         cursor.close()
         conn.close()
         
-        if deleted_count > 0:
-            return jsonify({"success": True, "message": f"Successfully cancelled {deleted_count} booking(s)"})
+        if updated_count > 0:
+            return jsonify({"success": True, "message": f"Successfully cancelled {updated_count} booking(s) by {cancelled_by}"})
         else:
             return jsonify({"success": False, "message": "No bookings were cancelled"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+
+# เปลี่ยนฟังก์ชันยกเลิกการจอง Transfer
+@app.route("/cancel_transfer_bookings", methods=["POST"])
+@login_required
+def cancel_transfer_bookings():
+    try:
+        # รับค่า booking_no ที่ถูกเลือกจากฟอร์ม
+        selected_bookings = request.form.getlist('selected_bookings')
+        
+        # รับชื่อผู้ cancel
+        cancelled_by = request.form.get('cancelled_by', '').strip()
+        
+        if not selected_bookings:
+            return jsonify({"success": False, "message": "No bookings selected"})
+        
+        if not cancelled_by:
+            return jsonify({"success": False, "message": "Cancellation name is required"})
+        
+        # เชื่อมต่อกับฐานข้อมูล
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # อัพเดต payment_status แทนการลบ
+        placeholders = ', '.join(['%s'] * len(selected_bookings))
+        query = f"UPDATE transfer_rental SET payment_status = %s WHERE booking_no IN ({placeholders})"
+        
+        # สร้าง status ใหม่
+        cancel_status = f"Cancelled by {cancelled_by}"
+        params = [cancel_status] + selected_bookings
+        
+        cursor.execute(query, params)
+        conn.commit()
+        
+        updated_count = cursor.rowcount
+        
+        cursor.close()
+        conn.close()
+        
+        if updated_count > 0:
+            return jsonify({"success": True, "message": f"Successfully cancelled {updated_count} booking(s) by {cancelled_by}"})
+        else:
+            return jsonify({"success": False, "message": "No bookings were cancelled"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+
+# เพิ่มฟังก์ชันสำหรับการ restore booking (optional)
+@app.route("/restore_booking", methods=["POST"])
+@login_required
+def restore_booking():
+    """Restore cancelled booking back to unpaid status"""
+    try:
+        booking_no = request.form.get('booking_no')
+        booking_type = request.form.get('booking_type', 'tour')
+        
+        if not booking_no:
+            return jsonify({"success": False, "message": "Booking number is required"})
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # เลือกตารางตามประเภท
+        if booking_type == 'transfer':
+            table_name = 'transfer_rental'
+        elif booking_type == 'motorbike':
+            table_name = 'motorbike_rental'
+        else:
+            table_name = 'tour_rental'
+        
+        # อัพเดต status กลับเป็น unpaid
+        query = f"UPDATE {table_name} SET payment_status = 'unpaid' WHERE booking_no = %s AND payment_status LIKE 'Cancelled by%'"
+        
+        cursor.execute(query, (booking_no,))
+        conn.commit()
+        
+        updated_count = cursor.rowcount
+        
+        cursor.close()
+        conn.close()
+        
+        if updated_count > 0:
+            return jsonify({"success": True, "message": f"Booking {booking_no} has been restored"})
+        else:
+            return jsonify({"success": False, "message": "Booking not found or not cancelled"})
         
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
@@ -2148,30 +2250,40 @@ def search_transfer_bookings():
 @login_required
 def cancel_transfer_bookings():
     try:
-        # Get selected booking numbers
+        # รับค่า booking_no ที่ถูกเลือกจากฟอร์ม
         selected_bookings = request.form.getlist('selected_bookings')
+        
+        # รับชื่อผู้ cancel
+        cancelled_by = request.form.get('cancelled_by', '').strip()
         
         if not selected_bookings:
             return jsonify({"success": False, "message": "No bookings selected"})
         
-        # Connect to database
+        if not cancelled_by:
+            return jsonify({"success": False, "message": "Cancellation name is required"})
+        
+        # เชื่อมต่อกับฐานข้อมูล
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Delete selected bookings
+        # อัพเดต payment_status แทนการลบ
         placeholders = ', '.join(['%s'] * len(selected_bookings))
-        query = f"DELETE FROM transfer_rental WHERE booking_no IN ({placeholders})"
+        query = f"UPDATE transfer_rental SET payment_status = %s WHERE booking_no IN ({placeholders})"
         
-        cursor.execute(query, selected_bookings)
+        # สร้าง status ใหม่
+        cancel_status = f"Cancelled by {cancelled_by}"
+        params = [cancel_status] + selected_bookings
+        
+        cursor.execute(query, params)
         conn.commit()
         
-        deleted_count = cursor.rowcount
+        updated_count = cursor.rowcount
         
         cursor.close()
         conn.close()
         
-        if deleted_count > 0:
-            return jsonify({"success": True, "message": f"Successfully cancelled {deleted_count} booking(s)"})
+        if updated_count > 0:
+            return jsonify({"success": True, "message": f"Successfully cancelled {updated_count} booking(s) by {cancelled_by}"})
         else:
             return jsonify({"success": False, "message": "No bookings were cancelled"})
         
