@@ -1,3 +1,4 @@
+<!-- P1_tour_form.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -249,15 +250,20 @@
             <!-- Menu -->
                 <section id="menu">
 
-                    <!-- Links -->
                         <section>
                             <ul class="links">
                                 <li>
-                                    <a href="tour_and_motorbike_form">
-                                        <h3 style="color: #000000;">Tour & Motorbike Rental</h3>
+                                    <a href="tour_rental_form">
+                                        <h3 style="color: #000000;">Tour Rental</h3>
                                         <p>click for view the form</p>
                                     </a>
                                 </li>
+                                <li>
+                                    <a href="motorbike_rental_form">
+                                        <h3 style="color: #000000;">Motorbike Rental</h3>
+                                        <p>click for view the form</p>
+                                    </a>
+                                </li>                                
                                 <li>
                                     <a href="home_transfer_form">
                                         <h3 style="color: #000000;">Home Transfer</h3>
@@ -301,7 +307,7 @@
 
                 
                 <!-- ฟอร์มค้นหา -->
-                <form action="{{ url_for('search_bookings') }}" method="POST" class="search-form">
+                <form action="{{ url_for('search_tour_bookings') }}" method="POST" class="search-form">
                     <h3 class="search-title">Search Bookings</h3>
                     <div class="form-row">
                         <div class="form-group">
@@ -315,21 +321,21 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label" for="room">Room</label>
-                            <select class="form-control" id="room" name="room">
-                                <option value="">All Rooms</option>
-                                {% for room_number in room_list|default([]) %}
-                                <option value="{{ room_number }}" {% if search_room == room_number %}selected{% endif %}>{{ room_number }}</option>
+                            <label class="form-label" for="booking_no">Booking No</label>
+                            <select class="form-control" id="booking_no" name="booking_no">
+                                <option value="">Select Booking No</option>
+                                {% for booking in booking_list|default([]) %}
+                                <option value="{{ booking.booking_no }}" {% if search_booking_no == booking.booking_no %}selected{% endif %}>{{ booking.booking_no }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label" for="experience_type">Experience Type</label>
-                            <select class="form-control" id="experience_type" name="experience_type">
-                                <option value="">All Types</option>
-                                <option value="tour" {% if search_experience_type == 'tour' %}selected{% endif %}>Tour</option>
-                                <option value="motorbike" {% if search_experience_type == 'motorbike' %}selected{% endif %}>Motorbike Rental</option>
-                                <option value="all" {% if search_experience_type == 'all' %}selected{% endif %}>Both (Tour & Motorbike)</option>
+                            <label class="form-label" for="name_surname">Name & Surname</label>
+                            <select class="form-control" id="name_surname" name="name_surname">
+                                <option value="">Select Name & Surname</option>
+                                {% for booking in booking_list|default([]) %}
+                                <option value="{{ booking.customer_name }} {{ booking.customer_surname }}" {% if search_name_surname == (booking.customer_name + ' ' + booking.customer_surname) %}selected{% endif %}>{{ booking.customer_name }} {{ booking.customer_surname }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
@@ -337,6 +343,7 @@
                 </form>
 
                 <form id="actionForm" method="POST">
+                    <input type="hidden" name="booking_type" value="tour">
                     <div class="table-container">
                         {% if bookings|default([])|length > 0 %}
                         <table class="booking-table">
@@ -351,11 +358,13 @@
                                     <th>Room</th>
                                     <th>Company Name</th>
                                     <th>Detail</th>
-                                    <th>Type</th>
                                     <th>Quantity</th>
+                                    <th>Discount</th>
                                     <th>Recieved</th>
                                     <th>Status</th>
+                                    <th>Payment Method</th>
                                     <th>Staff Name</th>
+                                    <th>Remark</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -372,23 +381,17 @@
                                     <td>{{ booking.room }}</td>
                                     <td>{{ booking.company_name }}</td>
                                     <td>{{ booking.detail }}</td>
-                                    <td>
-                                        {% if booking.experience_type == 'tour' %}
-                                        <span class="badge badge-tour">Tour</span>
-                                        {% elif booking.experience_type == 'motorbike' %}
-                                        <span class="badge badge-motorbike">Motorbike</span>
-                                        {% elif booking.experience_type == 'all' %}
-                                        <span class="badge badge-all">Both</span>
-                                        {% else %}
-                                        {{ booking.experience_type }}
-                                        {% endif %}
-                                    </td>
                                     <td>{{ booking.quantity }}</td>
+                                    <td>{{ booking.discount }}</td>
                                     <td>{{ booking.received }}</td>
                                     <td class="{% if booking.payment_status == 'paid' %}status-paid{% elif booking.payment_status == 'unpaid' %}status-unpaid{% endif %}">
                                         {{ booking.payment_status|capitalize }}
                                     </td>
+                                    <td class="{% if booking.payment_method == 'Cash' %}method-Cash{% elif booking.payment_method == 'Credit' %}status-Credit/Debit cards{% elif booking.payment_method == 'Bank' %}status-Bank transfer{% endif %}">
+                                        {{ booking.payment_method|capitalize }}
+                                    </td>
                                     <td>{{ booking.staff_name }}</td>
+                                    <td>{{ booking.remark }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -424,6 +427,7 @@
         </div>
         <form id="editForm" class="edit-form">
             <input type="hidden" id="edit_booking_no" name="booking_no">
+            <input type="hidden" name="booking_type" value="tour">
             
             <div class="form-row">
                 <div class="form-group">
@@ -455,20 +459,6 @@
                     <option value="{{ room_number }}">{{ room_number }}</option>
                     {% endfor %}
                 </select>
-            </div>
-            
-            <div class="form-group">
-                <label>Experience Type:</label>
-                <div class="radio-group">
-                    <label class="radio-option">
-                        <input type="radio" name="experienceType" id="edit_experienceType_tour" value="tour" onchange="handleEditExperienceTypeChange()">
-                        <span class="radio-label">Tour</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="experienceType" id="edit_experienceType_motorbike" value="motorbike" onchange="handleEditExperienceTypeChange()">
-                        <span class="radio-label">Motorbike Rental</span>
-                    </label>
-                </div>
             </div>
             
             <!-- แก้ไขให้เป็น dropdown จริงๆ -->
@@ -507,9 +497,32 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label for="edit_method">Payment Method:</label>
+                    <select id="edit_method" name="paymentmethod" required>
+                        <option value="Cash">Cash</option>
+                        <option value="Credit">Credit/Debit cards</option>
+                        <option value="Bank">Bank transfer</option>
+                        <option value=""></option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_discount">Discount:</label>
+                    <input type="text" id="edit_discount" name="discount">
+                </div>
+                <div class="form-group">
                     <label for="edit_staffName">Staff Name:</label>
                     <input type="text" id="edit_staffName" name="staffName" required>
-                </div>
+                </div>             
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_remark">Remark:</label>
+                    <input type="text" id="edit_remark" name="remark">
+                </div>                
             </div>
             
             <div class="modal-footer">
@@ -525,7 +538,7 @@
     <div class="modal-content">
         <div class="modal-header">
             <span class="close" onclick="closeExportModal()">&times;</span>
-            <h2>Export Tour & Motorbike Data</h2>
+            <h2>Export Tour Data</h2>
         </div>
         <form id="exportForm" class="export-form">
             <div class="form-group">
@@ -588,23 +601,6 @@
                 </div>
             </div>
             
-            <div class="form-group">
-                <label>Experience Type:</label>
-                <div class="radio-group">
-                    <label class="radio-option">
-                        <input type="radio" name="exportExperienceType" value="tour" checked>
-                        <span class="radio-label">Tour</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="exportExperienceType" value="motorbike">
-                        <span class="radio-label">Motorbike Rental</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="exportExperienceType" value="all">
-                        <span class="radio-label">All Types</span>
-                    </label>
-                </div>
-            </div>
             
             <!-- เพิ่มตัวเลือกเพิ่มเติม -->
             <div class="form-group">
@@ -639,7 +635,7 @@
     <script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
     <script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
     <script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/P1_script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/P1P3_script.js') }}"></script>
     <script src="{{ url_for('static', filename='js/notification.js') }}"></script>
     <script src="{{ url_for('static', filename='js/setting_protection.js') }}"></script>
     <script src="{{ url_for('static', filename='js/loading.js') }}"></script>

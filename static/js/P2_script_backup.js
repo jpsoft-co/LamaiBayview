@@ -1,4 +1,4 @@
-// P2_scripts.js - Enhanced version with discount support
+// P2_scripts.js - Updated version with dropdown support
 document.addEventListener('DOMContentLoaded', function() {
     // Set current date as travel date
     const today = new Date().toISOString().split('T')[0];
@@ -10,21 +10,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize transfer options
     updateTransferOptions();
 
-    // Initialize discount validation
-    initializeDiscountValidation();
-
     // Calculate total when price or persons change
     const priceInput = document.getElementById('price');
     const personsInput = document.getElementById('persons');
-    const discountInput = document.getElementById('discount');
     const receivedInput = document.getElementById('received');
+    
+    function calculateTotal() {
+        const price = parseFloat(priceInput.value) || 0;
+        const persons = parseInt(personsInput.value) || 0;
+        
+        if (price > 0 && persons > 0) {
+            const total = price * persons;
+            receivedInput.value = total.toFixed(2);
+        } else {
+            receivedInput.value = '';
+        }
+    }
     
     if (priceInput && personsInput && receivedInput) {
         priceInput.addEventListener('input', calculateTotal);
         personsInput.addEventListener('input', calculateTotal);
-        if (discountInput) {
-            discountInput.addEventListener('input', calculateTotal);
-        }
     }
     
     // Form submission
@@ -85,8 +90,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                     // Reset transfer options
                     updateTransferOptions();
-                    // Reinitialize discount validation after reset
-                    initializeDiscountValidation();
                 } else {
                     showAlert(`Error: ${data.message}`, 'danger');
                 }
@@ -146,178 +149,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add event listener for persons field in edit modal
     const editPersonsInput = document.getElementById('edit_persons');
-    const editDiscountInput = document.getElementById('edit_discount');
-    const editPriceInput = document.getElementById('edit_price');
-    
     if (editPersonsInput) {
         editPersonsInput.addEventListener('input', calculateEditTotal);
     }
-    if (editDiscountInput) {
-        editDiscountInput.addEventListener('input', calculateEditTotal);
-    }
-    if (editPriceInput) {
-        editPriceInput.addEventListener('input', calculateEditTotal);
-    }
 });
-
-// ===============================================
-// ENHANCED DISCOUNT CALCULATION FUNCTIONS
-// ===============================================
-
-/**
- * คำนวณส่วนลดที่รองรับทั้งจำนวนเงินและเปอร์เซ็นต์
- */
-function calculateDiscount(discountInput, subtotal) {
-    if (!discountInput || discountInput === '' || subtotal <= 0) {
-        return {
-            discountAmount: 0,
-            finalTotal: subtotal,
-            isPercentage: false
-        };
-    }
-    
-    const discountStr = String(discountInput).trim();
-    
-    if (discountStr.includes('%')) {
-        // กรณีเป็นเปอร์เซ็นต์
-        const percentageValue = parseFloat(discountStr.replace('%', ''));
-        
-        if (isNaN(percentageValue) || percentageValue < 0) {
-            return {
-                discountAmount: 0,
-                finalTotal: subtotal,
-                isPercentage: true,
-                error: "Invalid percentage value"
-            };
-        }
-        
-        if (percentageValue > 100) {
-            return {
-                discountAmount: 0,
-                finalTotal: subtotal,
-                isPercentage: true,
-                error: "Percentage cannot exceed 100%"
-            };
-        }
-        
-        const discountAmount = (subtotal * percentageValue) / 100;
-        const finalTotal = subtotal - discountAmount;
-        
-        return {
-            discountAmount: Math.round(discountAmount * 100) / 100,
-            finalTotal: Math.round(finalTotal * 100) / 100,
-            isPercentage: true,
-            percentageValue: percentageValue
-        };
-    } else {
-        // กรณีเป็นจำนวนเงิน
-        const discountAmount = parseFloat(discountStr);
-        
-        if (isNaN(discountAmount) || discountAmount < 0) {
-            return {
-                discountAmount: 0,
-                finalTotal: subtotal,
-                isPercentage: false,
-                error: "Invalid discount amount"
-            };
-        }
-        
-        if (discountAmount > subtotal) {
-            return {
-                discountAmount: 0,
-                finalTotal: subtotal,
-                isPercentage: false,
-                error: "Discount cannot exceed total amount"
-            };
-        }
-        
-        const finalTotal = subtotal - discountAmount;
-        
-        return {
-            discountAmount: Math.round(discountAmount * 100) / 100,
-            finalTotal: Math.round(finalTotal * 100) / 100,
-            isPercentage: false
-        };
-    }
-}
-
-/**
- * ฟังก์ชันตรวจสอบความถูกต้องของส่วนลดแบบ real-time
- */
-function validateDiscountInput(inputElement) {
-    if (!inputElement) return;
-    
-    const value = inputElement.value.trim();
-    if (!value) {
-        inputElement.style.borderColor = '';
-        inputElement.title = '';
-        return;
-    }
-    
-    const isPercentage = value.includes('%');
-    
-    if (isPercentage) {
-        const percentValue = parseFloat(value.replace('%', ''));
-        if (isNaN(percentValue) || percentValue < 0 || percentValue > 100) {
-            inputElement.style.borderColor = 'red';
-            inputElement.title = 'Please enter a valid percentage (0-100%)';
-        } else {
-            inputElement.style.borderColor = 'green';
-            inputElement.title = '';
-        }
-    } else {
-        const amount = parseFloat(value);
-        if (isNaN(amount) || amount < 0) {
-            inputElement.style.borderColor = 'red';
-            inputElement.title = 'Please enter a valid discount amount';
-        } else {
-            inputElement.style.borderColor = 'green';
-            inputElement.title = '';
-        }
-    }
-}
-
-/**
- * เพิ่ม Event Listeners สำหรับ Discount Fields
- */
-function initializeDiscountValidation() {
-    const discountInput = document.getElementById('discount');
-    const editDiscountInput = document.getElementById('edit_discount');
-    
-    // สำหรับหน้าหลัก
-    if (discountInput) {
-        discountInput.addEventListener('input', function() {
-            validateDiscountInput(this);
-            clearTimeout(this.calculationTimeout);
-            this.calculationTimeout = setTimeout(calculateTotal, 300);
-        });
-        
-        discountInput.addEventListener('blur', function() {
-            validateDiscountInput(this);
-            calculateTotal();
-        });
-        
-        discountInput.placeholder = 'e.g. 100 or 20%';
-        discountInput.title = 'Enter discount amount (e.g. 100) or percentage (e.g. 20%)';
-    }
-    
-    // สำหรับ Edit Modal
-    if (editDiscountInput) {
-        editDiscountInput.addEventListener('input', function() {
-            validateDiscountInput(this);
-            clearTimeout(this.calculationTimeout);
-            this.calculationTimeout = setTimeout(calculateEditTotal, 300);
-        });
-        
-        editDiscountInput.addEventListener('blur', function() {
-            validateDiscountInput(this);
-            calculateEditTotal();
-        });
-        
-        editDiscountInput.placeholder = 'e.g. 100 or 20%';
-        editDiscountInput.title = 'Enter discount amount (e.g. 100) or percentage (e.g. 20%)';
-    }
-}
 
 // Update transfer options based on selected type
 function updateTransferOptions() {
@@ -426,41 +261,20 @@ function updatePriceInfo() {
     }
 }
 
-// 🆕 Enhanced Calculate total amount with discount support
+// Calculate total amount
 function calculateTotal() {
     const priceField = document.getElementById('price');
     const personsField = document.getElementById('persons');
-    const discountField = document.getElementById('discount');
     const receivedField = document.getElementById('received');
     
     if (!priceField || !personsField || !receivedField) return;
     
     const price = parseFloat(priceField.value) || 0;
     const persons = parseInt(personsField.value) || 0;
-    const discountValue = discountField ? discountField.value : '';
     
     if (price > 0 && persons > 0) {
-        const subtotal = price * persons;
-        
-        // คำนวณส่วนลด
-        const discountResult = calculateDiscount(discountValue, subtotal);
-        
-        // แสดงผลลัพธ์
-        receivedField.value = discountResult.finalTotal.toFixed(2);
-        
-        // แสดงข้อผิดพลาดหากมี
-        if (discountResult.error) {
-            showAlert(discountResult.error, 'warning');
-            if (discountField) {
-                discountField.style.borderColor = 'red';
-            }
-        } else {
-            if (discountField) {
-                discountField.style.borderColor = discountValue ? 'green' : '';
-            }
-        }
-        
-        console.log(`Transfer Total: ${price} × ${persons} - ${discountResult.discountAmount} = ${discountResult.finalTotal}`);
+        const total = price * persons;
+        receivedField.value = total.toFixed(2);
     } else {
         receivedField.value = '';
     }
@@ -493,6 +307,14 @@ function validateTransferForm() {
             field.focus();
             return false;
         }
+    }
+    
+    // Validate paid amount
+    const paidField = document.getElementById('paid');
+    if (paidField && (!paidField.value || parseFloat(paidField.value) < 0)) {
+        showAlert('Please enter a valid paid amount.', 'warning');
+        paidField.focus();
+        return false;
     }
     
     return true;
@@ -602,6 +424,7 @@ function cancelTransfer() {
 }
 
 // Update transfer options for edit modal
+// Update transfer options for edit modal
 function updateEditTransferOptions() {
     const transferType = document.querySelector('input[name="edit_transferType"]:checked')?.value || 'departure';
     
@@ -684,41 +507,20 @@ function updateEditPriceInfo() {
     }
 }
 
-// 🆕 Enhanced Calculate total amount for edit modal with discount support
+// Calculate total amount for edit modal
 function calculateEditTotal() {
     const priceField = document.getElementById('edit_price');
     const personsField = document.getElementById('edit_persons');
-    const discountField = document.getElementById('edit_discount');
     const receivedField = document.getElementById('edit_received');
     
     if (!priceField || !personsField || !receivedField) return;
     
     const price = parseFloat(priceField.value) || 0;
     const persons = parseInt(personsField.value) || 0;
-    const discountValue = discountField ? discountField.value : '';
     
     if (price > 0 && persons > 0) {
-        const subtotal = price * persons;
-        
-        // คำนวณส่วนลด
-        const discountResult = calculateDiscount(discountValue, subtotal);
-        
-        // แสดงผลลัพธ์
-        receivedField.value = discountResult.finalTotal.toFixed(2);
-        
-        // แสดงข้อผิดพลาดหากมี
-        if (discountResult.error) {
-            showAlert(discountResult.error, 'warning');
-            if (discountField) {
-                discountField.style.borderColor = 'red';
-            }
-        } else {
-            if (discountField) {
-                discountField.style.borderColor = discountValue ? 'green' : '';
-            }
-        }
-        
-        console.log(`Edit Transfer Total: ${price} × ${persons} - ${discountResult.discountAmount} = ${discountResult.finalTotal}`);
+        const total = price * persons;
+        receivedField.value = total.toFixed(2);
     } else {
         receivedField.value = '';
     }
@@ -848,17 +650,13 @@ function editTransfer() {
                 document.getElementById('edit_price').value = booking.price || '0';
             }
             
-            // 🆕 ตั้งค่า discount
-            if (document.getElementById('edit_discount')) {
-                document.getElementById('edit_discount').value = booking.discount || '';
-            }
-            
-            // ข้อมูลการเงิน - คำนวณ total จาก persons * price - discount
+            // ข้อมูลการเงิน - คำนวณ total จาก persons * price
             if (document.getElementById('edit_received')) {
-                // ใช้ calculateEditTotal() เพื่อคำนวณรวม discount
-                setTimeout(() => {
-                    calculateEditTotal();
-                }, 200);
+                // คำนวณ total จาก persons * price
+                const persons = parseInt(booking.quantity) || 1;
+                const price = parseFloat(booking.price) || 0;
+                const total = persons * price;
+                document.getElementById('edit_received').value = total.toFixed(2);
             }
             
             // ข้อมูลรายละเอียด - ใช้จากตาราง transfer_rental
@@ -878,15 +676,6 @@ function editTransfer() {
             // ข้อมูลคนขับ
             if (document.getElementById('edit_driverName')) {
                 document.getElementById('edit_driverName').value = booking.driver_name || '';
-            }
-            
-            // 🆕 ข้อมูล payment method และ remark
-            if (document.getElementById('edit_method')) {
-                document.getElementById('edit_method').value = booking.payment_method || '';
-            }
-            
-            if (document.getElementById('edit_remark')) {
-                document.getElementById('edit_remark').value = booking.remark || '';
             }
             
             // ปิด alert
@@ -1031,7 +820,7 @@ function printToExcel() {
        const a = document.createElement('a');
        a.style.display = 'none';
        a.href = url;
-       a.download = `Transfer_Booking_${bookingNo}_${new Date().toISOString().split('T')[0].replace(/-/g, '')}.xlsx`;
+       a.download = `Booking_${bookingNo}_${new Date().toISOString().split('T')[0].replace(/-/g, '')}.xlsx`;
        
        // เพิ่ม element ไปที่ DOM และ trigger การคลิก
        document.body.appendChild(a);
@@ -1083,8 +872,6 @@ function exportTransfer() {
    const exportModal = document.getElementById('exportModal');
    if (exportModal) {
        exportModal.style.display = 'block';
-       // Initialize the fields display
-       toggleExportFields();
    }
 }
 

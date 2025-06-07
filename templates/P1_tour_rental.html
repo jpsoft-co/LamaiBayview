@@ -1,3 +1,4 @@
+<!-- P1_tour_rental.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -247,15 +248,20 @@
             <!-- Menu -->
                 <section id="menu">
 
-                    <!-- Links -->
                         <section>
                             <ul class="links">
                                 <li>
-                                    <a href="tour_and_motorbike_form">
-                                        <h3 style="color: #000000;">Tour & Motorbike Rental</h3>
+                                    <a href="tour_rental_form">
+                                        <h3 style="color: #000000;">Tour Rental</h3>
                                         <p>click for view the form</p>
                                     </a>
                                 </li>
+                                <li>
+                                    <a href="motorbike_rental_form">
+                                        <h3 style="color: #000000;">Motorbike Rental</h3>
+                                        <p>click for view the form</p>
+                                    </a>
+                                </li>                                
                                 <li>
                                     <a href="home_transfer_form">
                                         <h3 style="color: #000000;">Home Transfer</h3>
@@ -292,7 +298,7 @@
             <div class="gold-accent"></div>
             <div class="form-header">
                 <h1>Lamai Bayview Boutique Resort</h1>
-                <p>Home Tour & Motorbike Booking</p>
+                <p>Tour Booking</p>
             </div>
             
     <!-- Updated form section -->
@@ -317,23 +323,6 @@
                     <option value="{{ room_number }}">{{ room_number }}</option>
                     {% endfor %}
                 </select>
-            </div>
-
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Experience Type</label>
-                    <div class="radio-group">
-                        <label class="radio-option">
-                            <input type="radio" name="experienceType" class="radio-input" value="tour" checked onchange="handleExperienceTypeChange()">
-                            <span class="radio-label">Tour</span>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="experienceType" class="radio-input" value="motorbike" onchange="handleExperienceTypeChange()">
-                            <span class="radio-label">Motorbike Rental</span>
-                        </label>
-                    </div>
-                </div>
             </div>
             
             <div class="form-row">
@@ -375,39 +364,46 @@
                     <input type="number" class="form-control" id="price" name="price" placeholder="Price per person" required readonly>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="total">Total</label>
-                    <input type="text" class="form-control" id="total" readonly placeholder="Total amount">
+                    <label class="form-label" for="discount">Discount</label>
+                    <input type="text" class="form-control" id="discount" name="discount" placeholder="discount">
                 </div>
             </div>
             
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label" for="staffName">Staff Name</label>
-                    <input type="text" class="form-control" id="staffName" name="staffName" placeholder="Reservation maker" required>
+                    <label class="form-label" for="total">Total</label>
+                    <input type="text" class="form-control" id="total" readonly placeholder="Total amount">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="status">Status</label>
                     <select class="form-control" id="status" name="status" required>
-                        <option value="">Paid/Unpaid</option>
+                        <option value="">Select status</option>
                         <option value="paid">Paid</option>
                         <option value="unpaid">Unpaid</option>
                     </select>
                 </div>
             </div>
-            
-            <div class="divider"></div>
-            
-            <div class="search-section">
-                <h3 class="search-title">Period</h3>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label class="form-label" for="searchDate">Date</label>
-                        <input type="date" class="form-control" id="searchDate" name="searchDate">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="searchDateTo">To</label>
-                        <input type="date" class="form-control" id="searchDateTo" name="searchDateTo">
-                    </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="paymentmethod">Payment Method</label>
+                    <select class="form-control" id="paymentmethod" name="paymentmethod" required>
+                        <option value="Cash">Cash</option>
+                        <option value="Credit">Credit/Debit cards</option>
+                        <option value="Bank">Bank transfer</option>
+                        <option value=""></option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="staffName">Staff Name</label>
+                    <input type="text" class="form-control" id="staffName" name="staffName" placeholder="Reservation maker" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label" for="remark">Remark</label>
+                    <input type="text" class="form-control" id="remark" name="remark" placeholder="Remark">
                 </div>
             </div>
             
@@ -421,7 +417,7 @@
     <script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
     <script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
     <script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/P1_script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/P1P3_script.js') }}"></script>
     <script src="{{ url_for('static', filename='js/notification.js') }}"></script>
     <script src="{{ url_for('static', filename='js/setting_protection.js') }}"></script>
     <script src="{{ url_for('static', filename='js/loading.js') }}"></script>

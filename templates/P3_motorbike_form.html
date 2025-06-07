@@ -1,3 +1,4 @@
+<!-- P1-form -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -227,7 +228,7 @@
     }
 }
 </style>
-    <title>View Home Transfer Bookings</title>
+    <title>View Motorbike Bookings</title>
 </head>
 <body data-user-role="{{ session.role }}">
 		<!-- Wrapper -->
@@ -299,13 +300,15 @@
             <div class="gold-accent"></div>
             <div class="form-header">
                 <h1>Lamai Bayview Boutique Resort</h1>
-                <p>Home Transfer Booking Management</p>
+                <p>Motorbike Booking Management</p>
             </div>
             
             <div class="form-body">
+
+                
                 <!-- ฟอร์มค้นหา -->
-                <form action="{{ url_for('search_transfer_bookings') }}" method="POST" class="search-form">
-                    <h3 class="search-title">Search Transfers</h3>
+                <form action="{{ url_for('search_motorbike_bookings') }}" method="POST" class="search-form">
+                    <h3 class="search-title">Search Bookings</h3>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="start_date">From Date</label>
@@ -318,45 +321,46 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Transfer Type</label>
-                            <div class="radio-group">
-                                <label class="radio-option">
-                                    <input type="radio" name="searchType" class="radio-input" value="departure" checked>
-                                    <span class="radio-label">Departure</span>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" name="searchType" class="radio-input" value="arrivals">
-                                    <span class="radio-label">Arrivals</span>
-                                </label>
-                                <label class="radio-option">
-                                    <input type="radio" name="searchType" class="radio-input" value="all">
-                                    <span class="radio-label">All</span>
-                                </label>
-                            </div>
+                            <label class="form-label" for="booking_no">Booking No</label>
+                            <select class="form-control" id="booking_no" name="booking_no">
+                                <option value="">Select Booking No</option>
+                                {% for booking in booking_list|default([]) %}
+                                <option value="{{ booking.booking_no }}" {% if search_booking_no == booking.booking_no %}selected{% endif %}>{{ booking.booking_no }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="name_surname">Name & Surname</label>
+                            <select class="form-control" id="name_surname" name="name_surname">
+                                <option value="">Select Name & Surname</option>
+                                {% for booking in booking_list|default([]) %}
+                                <option value="{{ booking.customer_name }} {{ booking.customer_surname }}" {% if search_name_surname == (booking.customer_name + ' ' + booking.customer_surname) %}selected{% endif %}>{{ booking.customer_name }} {{ booking.customer_surname }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
                     <button type="submit" class="btn">Search</button>
                 </form>
 
-                <!-- ตารางแสดงการจอง -->
-                <div class="table-container">
-                    <form id="actionForm" method="POST">
-                        {% if transfers|default([])|length > 0 %}
+                <form id="actionForm" method="POST">
+                    <input type="hidden" name="booking_type" value="motorbike">
+                    <div class="table-container">
+                        {% if bookings|default([])|length > 0 %}
                         <table class="booking-table">
                             <thead>
                                 <tr>
                                     <th>SELECT</th>
-                                    <th>Travel Date</th>
+                                    <th>Travel date</th>
                                     <th>Time</th>
-                                    <th>Booking No.</th>
+                                    <th>Booking Date</th>
+                                    <th>Booking No</th>
                                     <th>Name & Surname</th>
-                                    <th>Type</th>
-                                    <th>From</th>
-                                    <th>To</th>
+                                    <th>Room</th>
+                                    <th>Company Name</th>
                                     <th>Detail</th>
-                                    <th>Person</th>
+                                    <th>Quantity</th>
                                     <th>Discount</th>
-                                    <th>Received</th>
+                                    <th>Recieved</th>
                                     <th>Status</th>
                                     <th>Payment Method</th>
                                     <th>Staff Name</th>
@@ -364,248 +368,176 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for transfer in transfers %}
+                                {% for booking in bookings %}
                                 <tr>
                                     <td>
-                                        <input type="checkbox" name="selected_bookings" value="{{ transfer.booking_no }}" style="width: 20px; height: 20px;">
+                                        <input type="checkbox" name="selected_bookings" value="{{ booking.booking_no }}" style="width: 20px; height: 20px;">
                                     </td>
-                                    <td>{{ transfer.travel_date }}</td>
-                                    <td>{{ transfer.pickup_time }}</td>
-                                    <td>{{ transfer.booking_no }}</td>                               
-                                    <td>{{ transfer.customer_name }} {{ transfer.customer_surname }}</td>
-                                    <td>
-                                        {% if transfer.departure %}
-                                        <span class="badge badge-departure">Departure</span>
-                                        {% elif transfer.arrivals %}
-                                        <span class="badge badge-arrivals">Arrivals</span>
-                                        {% else %}
-                                        <span class="badge">Unknown</span>
-                                        {% endif %}
+                                    <td>{{ booking.travel_date }}</td>
+                                    <td>{{ booking.pickup_time }}</td>
+                                    <td>{{ booking.booking_date }}</td>
+                                    <td>{{ booking.booking_no }}</td>
+                                    <td>{{ booking.customer_name }} {{ booking.customer_surname }}</td>
+                                    <td>{{ booking.room }}</td>
+                                    <td>{{ booking.company_name }}</td>
+                                    <td>{{ booking.detail }}</td>
+                                    <td>{{ booking.quantity }}</td>
+                                    <td>{{ booking.discount }}</td>
+                                    <td>{{ booking.received }}</td>
+                                    <td class="{% if booking.payment_status == 'paid' %}status-paid{% elif booking.payment_status == 'unpaid' %}status-unpaid{% endif %}">
+                                        {{ booking.payment_status|capitalize }}
                                     </td>
-                                    <td>{{ transfer.place_from }}</td>
-                                    <td>{{ transfer.place_to }}</td>
-                                    <td>{{ transfer.detail }}</td>
-                                    <td>{{ transfer.quantity }}</td>
-                                    <td>{{ transfer.discount }}</td>                                    
-                                    <td>{{ transfer.received }}</td>
-                                    <td>
-                                        <span class="badge 
-                                            {% if transfer.payment_status == 'paid' %}badge-success
-                                            {% elif transfer.payment_status == 'unpaid' %}badge-danger
-                                            {% else %}badge-secondary
-                                            {% endif %}">
-                                            {{ transfer.payment_status|title }}
-                                        </span>
+                                    <td class="{% if booking.payment_method == 'Cash' %}method-Cash{% elif booking.payment_method == 'Credit' %}status-Credit/Debit cards{% elif booking.payment_method == 'Bank' %}status-Bank transfer{% endif %}">
+                                        {{ booking.payment_method|capitalize }}
                                     </td>
-                                    <td>
-                                        <span class="badge 
-                                            {% if transfer.payment_method == 'Cash' %}badge-success
-                                            {% elif transfer.payment_method == 'Credit' %}badge-success
-                                            {% elif transfer.payment_method == 'Bank' %}badge-success                                            
-                                            {% else %}badge-secondary
-                                            {% endif %}">
-                                            {{ transfer.payment_method|title }}
-                                        </span>
-                                    </td>                                    
-                                    <td>{{ transfer.staff_name }}</td>
-                                    <td>{{ transfer.remark }}</td>                                    
+                                    <td>{{ booking.staff_name }}</td>
+                                    <td>{{ booking.remark }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                         {% else %}
                         <div class="empty-result">
-                            <p>No transfers found. Please try different search criteria.</p>
+                            <p>No bookings found. Please try different search criteria.</p>
                         </div>
                         {% endif %}
-                    </form>
-                </div>
+                    </div>
+                    
+                    <!-- แสดงข้อความแจ้งเตือน -->
+                    <div id="alert-container" style="display: none;" class="alert"></div>
 
-                <!-- แสดงข้อความแจ้งเตือน -->
-                <div id="alert-container" style="display: none;" class="alert"></div>
-
-                <div style="margin-top: 30px; text-align: center;">
-                    <a class="card-btn" onclick="printToExcel()">Print to Excel</a>
-                    <a class="card-btn" id="cancelBtn" onclick="cancelTransfer()">Cancel</a>
-                    <a class="card-btn" id="editBtn" onclick="editTransfer()">Edit</a>
-                    <a class="card-btn" id="exportBtn" onclick="exportTransfer()">Export</a>
-                </div>
+                    <div style="margin-top: 30px; text-align: center;">
+                        <a class="card-btn" onclick="printToExcel()">Print to Excel</a>
+                        <a class="card-btn" id="cancelBtn" onclick="cancelBookings()">Cancel</a>
+                        <a class="card-btn" id="editBtn" onclick="editBooking()">Edit</a>
+                        <a class="card-btn" id="exportBtn" onclick="exportBooking()">Export</a>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 
-<!-- Modal สำหรับการแก้ไขข้อมูล -->
-<!-- Modal สำหรับการแก้ไขข้อมูล -->
+<!-- Modal สำหรับการแก้ไขข้อมูล (Updated) -->
+<!-- แทนที่ Edit Modal เดิมด้วยโค้ดนี้ -->
 <div id="editModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <span class="close" onclick="closeModal()">&times;</span>
-            <h2>Edit Transfer</h2>
+            <h2>Edit Booking</h2>
         </div>
         <form id="editForm" class="edit-form">
             <input type="hidden" id="edit_booking_no" name="booking_no">
+            <input type="hidden" name="booking_type" value="motorbike">
             
-            <div class="form-group">
-                <label for="edit_name">Name:</label>
-                <input type="text" id="edit_name" name="name" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="edit_surname">Surname:</label>
-                <input type="text" id="edit_surname" name="surname" required>
-            </div>
-            
-            <div class="form-group">
-                <label>Transfer Type:</label>
-                <div class="radio-group">
-                    <label class="radio-option">
-                        <input type="radio" name="edit_transferType" id="edit_transferType_departure" value="departure" onchange="updateEditTransferOptions()">
-                        <span class="radio-label">Departure</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="edit_transferType" id="edit_transferType_arrivals" value="arrivals" onchange="updateEditTransferOptions()">
-                        <span class="radio-label">Arrivals</span>
-                    </label>
-                </div>
-            </div>
-            
-            <!-- แก้ไขส่วน From และ To ให้เป็น dropdown แบบ dynamic -->
             <div class="form-row">
                 <div class="form-group">
-                    <label for="edit_place_from">From:</label>
-                    <div class="location-input">
-                        <!-- Dropdown for departure (resort to destination) -->
-                        <select class="form-control" id="edit_place_from_departure" name="place_from" style="display: none;">
-                            <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
-                        </select>
-                        
-                        <!-- Dropdown for arrival (origin to resort) -->
-                        <select class="form-control" id="edit_place_from_arrival" name="place_from" style="display: none;" onchange="updateEditPriceInfo()">
-                            <option value="">Select Origin</option>
-                            {% for origin in arrival_origins %}
-                            <option value="{{ origin.origin }}" 
-                                    data-passengers="{{ origin.passengers }}" 
-                                    data-price="{{ origin.received }}" 
-                                    data-paid="{{ origin.paid }}">
-                                {{ origin.origin }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                        
-                        <!-- Fallback input field -->
-                        <input type="text" class="form-control" id="edit_place_from_input" name="place_from" style="display: none;">
-                    </div>
+                    <label for="edit_date">Travel Date:</label>
+                    <input type="date" id="edit_date" name="date" required>
                 </div>
                 <div class="form-group">
-                    <label for="edit_place_to">To:</label>
-                    <div class="location-input">
-                        <!-- Dropdown for departure (resort to destination) -->
-                        <select class="form-control" id="edit_place_to_departure" name="place_to" style="display: none;" onchange="updateEditPriceInfo()">
-                            <option value="">Select Destination</option>
-                            {% for destination in departure_destinations %}
-                            <option value="{{ destination.destination }}" 
-                                    data-passengers="{{ destination.passengers }}" 
-                                    data-price="{{ destination.received }}" 
-                                    data-paid="{{ destination.paid }}">
-                                {{ destination.destination }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                        
-                        <!-- Dropdown for arrival (origin to resort) -->
-                        <select class="form-control" id="edit_place_to_arrival" name="place_to" style="display: none;">
-                            <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
-                        </select>
-                        
-                        <!-- Fallback input field -->
-                        <input type="text" class="form-control" id="edit_place_to_input" name="place_to" style="display: none;">
-                    </div>
+                    <label for="edit_time">Pickup Time:</label>
+                    <input type="time" id="edit_time" name="time" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_name">First Name:</label>
+                    <input type="text" id="edit_name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit_surname">Last Name:</label>
+                    <input type="text" id="edit_surname" name="surname" required>
                 </div>
             </div>
             
             <div class="form-group">
-                <label for="edit_time">Time:</label>
-                <input type="time" id="edit_time" name="time" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="edit_travel_date">Travel Date:</label>
-                <input type="date" id="edit_travel_date" name="travel_date" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="edit_persons">Person:</label>
-                <input type="number" id="edit_persons" name="persons" min="1" required onchange="calculateEditTotal()">
-            </div>
-            
-            <div class="form-group">
-                <label for="edit_price">Price per Person:</label>
-                <input type="number" id="edit_price" name="price" min="0" required onchange="calculateEditTotal()">
-            </div>
-
-            <div class="form-group">
-                <label for="edit_discount">Discount:</label>
-                <input type="text" id="edit_discount" name="discount" placeholder="e.g. 100 or 20%">
-            </div>            
-            
-            <div class="form-group">
-                <label for="edit_received">Total Amount (Received):</label>
-                <input type="number" id="edit_received" name="received" min="0" required readonly>
-            </div>
-            
-            <div class="form-group">
-                <label for="edit_detail">Detail:</label>
-                <input type="text" id="edit_detail" name="detail">
-            </div>
-            
-            <div class="form-group">
-                <label for="edit_staffName">Staff Name:</label>
-                <input type="text" id="edit_staffName" name="staffName" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="edit_driverName">Driver Name:</label>
-                <input type="text" id="edit_driverName" name="driverName">
-            </div>
-            
-            <div class="form-group">
-                <label for="edit_status">Payment Status:</label>
-                <select id="edit_status" name="status" required>
-                    <option value="paid">Paid</option>
-                    <option value="unpaid">Unpaid</option>
+                <label for="edit_room">Room:</label>
+                <select id="edit_room" name="room" required>
+                    <option value="">-- Select Room --</option>
+                    {% for room_number in room_list|default([]) %}
+                    <option value="{{ room_number }}">{{ room_number }}</option>
+                    {% endfor %}
                 </select>
             </div>
-
-            <div class="form-group">
-                <label for="edit_method">Payment Method:</label>
-                <select id="edit_method" name="paymentmethod" required>
-                    <option value="Cash">Cash</option>
-                    <option value="Credit">Credit/Debit cards</option>
-                    <option value="Bank">Bank transfer</option>
-                    <option value=""></option>
-                </select>
+            
+            <!-- แก้ไขให้เป็น dropdown จริงๆ -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_company">Company Name:</label>
+                    <select id="edit_company" name="company" required onchange="handleEditCompanyChange()">
+                        <option value="">-- Select Company --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit_detail">Detail:</label>
+                    <select id="edit_detail" name="detail" required onchange="handleEditDetailChange()">
+                        <option value="">-- Select Detail --</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_persons">Quantity:</label>
+                    <input type="number" id="edit_persons" name="persons" min="1" required onchange="calculateEditTotal()">
+                </div>
+                <div class="form-group">
+                    <label for="edit_price">Price per Person:</label>
+                    <input type="number" id="edit_price" name="price" min="0" step="0.01" required readonly>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_status">Payment Status:</label>
+                    <select id="edit_status" name="status" required>
+                        <option value="paid">Paid</option>
+                        <option value="unpaid">Unpaid</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit_method">Payment Method:</label>
+                    <select id="edit_method" name="paymentmethod" required>
+                        <option value="Cash">Cash</option>
+                        <option value="Credit">Credit/Debit cards</option>
+                        <option value="Bank">Bank transfer</option>
+                        <option value=""></option>
+                    </select>
             </div>
 
-            <div class="form-group">
-                <label for="edit_remark">Remark:</label>
-                <input type="text" id="edit_remark" name="remark">
-            </div>                
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_discount">Discount:</label>
+                    <input type="text" id="edit_discount" name="discount">
+                </div>
+                <div class="form-group">
+                    <label for="edit_staffName">Staff Name:</label>
+                    <input type="text" id="edit_staffName" name="staffName" required>
+                </div>             
+            </div>
 
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_remark">Remark:</label>
+                    <input type="text" id="edit_remark" name="remark">
+                </div>                
+            </div>
             
             <div class="modal-footer">
                 <button type="button" class="card-btn" onclick="closeModal()">Cancel</button>
-                <button type="button" class="card-btn" onclick="saveTransfer()">Save Changes</button>
+                <button type="button" class="card-btn" onclick="saveBooking()">Save Changes</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Modal สำหรับการ export ข้อมูล -->
+<!-- Modal สำหรับการ export ข้อมูล Tour & Motorbike -->
 <div id="exportModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <span class="close" onclick="closeExportModal()">&times;</span>
-            <h2>Export Transfers Data</h2>
+            <h2>Export Motorbike Data</h2>
         </div>
         <form id="exportForm" class="export-form">
             <div class="form-group">
@@ -668,39 +600,21 @@
                 </div>
             </div>
             
+            <!-- เพิ่มตัวเลือกเพิ่มเติม -->
             <div class="form-group">
-                <label>Transfer Type:</label>
+                <label>Payment Status (Optional):</label>
                 <div class="radio-group">
                     <label class="radio-option">
-                        <input type="radio" name="exportTransferType" value="departure" checked>
-                        <span class="radio-label">Departure</span>
+                        <input type="radio" name="exportPaymentStatus" value="all" checked>
+                        <span class="radio-label">All Status</span>
                     </label>
-                    <label class="radio-option">
-                        <input type="radio" name="exportTransferType" value="arrivals">
-                        <span class="radio-label">Arrivals</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="exportTransferType" value="all">
-                        <span class="radio-label">All</span>
-                    </label>
-                </div>
-            </div>
-            
-            <!-- Payment Status Filter - NEW -->
-            <div class="form-group">
-                <label>Payment Status:</label>
-                <div class="radio-group">
                     <label class="radio-option">
                         <input type="radio" name="exportPaymentStatus" value="paid">
-                        <span class="radio-label">Paid</span>
+                        <span class="radio-label">Paid Only</span>
                     </label>
                     <label class="radio-option">
                         <input type="radio" name="exportPaymentStatus" value="unpaid">
-                        <span class="radio-label">Unpaid</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="exportPaymentStatus" value="all" checked>
-                        <span class="radio-label">All</span>
+                        <span class="radio-label">Unpaid Only</span>
                     </label>
                 </div>
             </div>
@@ -714,12 +628,12 @@
 </div>
 
     <!-- Scripts -->
-    <script src="{{ url_for('static', filename='js/P2_script.js') }}"></script>
     <script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
     <script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
     <script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
     <script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
     <script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/P1P3_script.js') }}"></script>
     <script src="{{ url_for('static', filename='js/notification.js') }}"></script>
     <script src="{{ url_for('static', filename='js/setting_protection.js') }}"></script>
     <script src="{{ url_for('static', filename='js/loading.js') }}"></script>

@@ -248,15 +248,20 @@
             <!-- Menu -->
                 <section id="menu">
 
-                    <!-- Links -->
                         <section>
                             <ul class="links">
                                 <li>
-                                    <a href="tour_and_motorbike_form">
-                                        <h3 style="color: #000000;">Tour & Motorbike Rental</h3>
+                                    <a href="tour_rental_form">
+                                        <h3 style="color: #000000;">Tour Rental</h3>
                                         <p>click for view the form</p>
                                     </a>
                                 </li>
+                                <li>
+                                    <a href="motorbike_rental_form">
+                                        <h3 style="color: #000000;">Motorbike Rental</h3>
+                                        <p>click for view the form</p>
+                                    </a>
+                                </li>                                
                                 <li>
                                     <a href="home_transfer_form">
                                         <h3 style="color: #000000;">Home Transfer</h3>
@@ -398,12 +403,16 @@
                     <!-- เพิ่มฟิลด์ Received และ Paid -->
                     <div class="form-row">
                         <div class="form-group">
+                            <label class="form-label" for="discount">Discount</label>
+                            <input type="text" class="form-control" id="discount" name="discount" placeholder="e.g. 100 or 20%">
+                        </div>       
+                        <div class="form-group">
                             <label class="form-label" for="received">Total Amount (Received)</label>
                             <input type="number" class="form-control" id="received" name="received" readonly>
                         </div>
                     </div>
                     
-                    <div class="form-row">
+                    <div class="form-row">                 
                         <div class="form-group">
                             <label class="form-label" for="detail">Detail</label>
                             <input type="text" class="form-control" id="detail" name="detail" placeholder="Additional details">
@@ -412,16 +421,20 @@
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label" for="staffName">Staff Name</label>
-                            <input type="text" class="form-control" id="staffName" name="staffName" required placeholder="Staff member name">
-                        </div>
-                        <div class="form-group">
                             <label class="form-label" for="status">Payment Status</label>
                             <select class="form-control" id="status" name="status" required>
                                 <option value="">Select status</option>
                                 <option value="paid">Paid</option>
                                 <option value="unpaid">Unpaid</option>
-                                <option value="partial">Partial Payment</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="paymentmethod">Payment Method</label>
+                            <select class="form-control" id="paymentmethod" name="paymentmethod" required>
+                                <option value="Cash">Cash</option>
+                                <option value="Credit">Credit/Debit cards</option>
+                                <option value="Bank">Bank transfer</option>
+                                <option value=""></option>
                             </select>
                         </div>
                     </div>
@@ -429,26 +442,23 @@
                     <!-- เพิ่มฟิลด์ Driver Name -->
                     <div class="form-row">
                         <div class="form-group">
+                            <label class="form-label" for="staffName">Staff Name</label>
+                            <input type="text" class="form-control" id="staffName" name="staffName" required placeholder="Staff member name">
+                        </div>
+                        <div class="form-group">
                             <label class="form-label" for="driverName">Driver Name</label>
                             <input type="text" class="form-control" id="driverName" name="driverName" placeholder="Driver name">
                         </div>
                     </div>
-                    
-                    <div class="divider"></div>
-                    
-                    <div class="search-section">
-                        <h3 class="search-title">Period</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label" for="searchDate">DATE</label>
-                                <input type="date" class="form-control" id="searchDate" name="searchDate">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" for="searchDateTo">To</label>
-                                <input type="date" class="form-control" id="searchDateTo" name="searchDateTo">
-                            </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="remark">Remark</label>
+                            <input type="text" class="form-control" id="remark" name="remark" placeholder="Remark">
                         </div>
                     </div>
+                    
+                    <div class="divider"></div>
                     
                     <button type="submit" class="btn">Submit Transfer Booking</button>
                 </form>

@@ -1,3 +1,8 @@
+# เหลือทำ cancel
+# การคำนวณ discout
+# เลือกเป็นช่วงผู้โดยสาร
+# เลือก bike ได้หลายคัน
+
 from flask import Flask, render_template, request, jsonify, url_for, redirect, send_file, session, flash
 import os
 import re
@@ -31,21 +36,34 @@ def login_required(f):
 # ---------------------------------------Connect database ---------------------------------------
 
 # Database connection
-def get_db_connection():
-    database_url = os.getenv("DATABASE_URL")
+# def get_db_connection():
+#     database_url = os.getenv("DATABASE_URL")
     
-    if database_url:
-        # สำหรับ Render.com
-        return psycopg2.connect(database_url)
-    else:
-        # สำหรับ local development
-        return psycopg2.connect(
-            host=os.getenv("DB_HOST"),
-            port=int(os.getenv("DB_PORT", 5432)),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASS"),
-            database=os.getenv("DB_NAME")
-        )
+#     if database_url:
+#         # สำหรับ Render.com
+#         return psycopg2.connect(database_url)
+#     else:
+#         # สำหรับ local development
+#         return psycopg2.connect(
+#             host=os.getenv("DB_HOST"),
+#             port=int(os.getenv("DB_PORT", 5432)),
+#             user=os.getenv("DB_USER"),
+#             password=os.getenv("DB_PASS"),
+#             database=os.getenv("DB_NAME")
+#         )
+
+
+# for local
+def get_db_connection():
+    return psycopg2.connect(
+        host="dpg-d0qsdf95pdvs73atfls0-a.oregon-postgres.render.com",  # ✅ host ต้องไม่มี protocol
+        port="5432",
+        dbname="booking_system_mmdr",
+        user="booking_user",
+        password="1YtEzFr8UkRTNzzwYtKQe8jaaremuxyA",
+        sslmode="require"  # ✅ ใช้ sslmode=required กับ Render
+    )
+
 
 def load_data_from_file(filename):
     try:
@@ -60,7 +78,7 @@ def load_data_from_file(filename):
         print(f"Error loading file {filename}: {str(e)}")
         return []
 
-# แทนที่ route เดิม @app.route("/") ด้วยโค้ดนี้
+
 @app.route("/")
 def index():
     # ถ้า login แล้วให้ไปหน้า home
@@ -68,7 +86,7 @@ def index():
         return redirect(url_for('home'))
     return render_template("P00_login.html")
 
-# อัปเดต process_login route สำหรับ plain text password
+
 
 @app.route("/process_login", methods=["POST"])
 def process_login():
@@ -132,11 +150,11 @@ def logout():
 def home():
     return render_template("P0_home.html")
 
-# -------------------------------- Tour & Motorbike Page (Updated) --------------------------------------------------------------
+# -------------------------------- Tour Page (Updated) --------------------------------------------------------------
 
-@app.route("/home_tour_and_motorbike_rental")
+@app.route("/tour_rental")
 @login_required
-def tour_and_motorbike_rental():
+def tour_rental():
     # เชื่อมต่อกับฐานข้อมูล
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -147,26 +165,20 @@ def tour_and_motorbike_rental():
     room_results = cursor.fetchall()
     rooms = [room[0] for room in room_results]
     
-    # ดึงข้อมูล tour companies และ details
+    # ดึงข้อมูล tour companies เท่านั้น (ไม่ต้อง motorbike)
     query_tour = "SELECT DISTINCT company_name FROM tour_tabel ORDER BY company_name"
     cursor.execute(query_tour)
     tour_companies = [company[0] for company in cursor.fetchall()]
-    
-    # ดึงข้อมูล motorbike companies และ details
-    query_motorbike = "SELECT DISTINCT company_name FROM motorbike_tabel ORDER BY company_name"
-    cursor.execute(query_motorbike)
-    motorbike_companies = [company[0] for company in cursor.fetchall()]
     
     cursor.close()
     conn.close()
     
     today = date.today().isoformat()  # YYYY-MM-DD
     
-    return render_template('P1_home_tour_and_motorbike_rental.html', 
+    return render_template('P1_tour_rental.html', 
                          room=rooms, 
                          today=today,
-                         tour_companies=tour_companies,
-                         motorbike_companies=motorbike_companies)
+                         tour_companies=tour_companies)
 
 # เพิ่ม API endpoint สำหรับดึงข้อมูล details ตาม company และ experience type
 @app.route("/get_company_details", methods=["POST"])
@@ -292,8 +304,9 @@ def submit_tour_booking():
         prefix = f"{year_prefix}{month_prefix}"  # e.g., 2505
         
         # Query to find the highest booking number with the current year-month prefix
+        # ⚠️ เปลี่ยนจาก tour_motobike_rental เป็น tour_rental
         query = """
-        SELECT booking_no FROM tour_motobike_rental 
+        SELECT booking_no FROM tour_rental 
         WHERE booking_no LIKE %s 
         ORDER BY CAST(SUBSTRING(booking_no, 5) AS INTEGER) DESC 
         LIMIT 1
@@ -302,46 +315,40 @@ def submit_tour_booking():
         result = cursor.fetchone()
         
         if result:
-            # If a booking number with this prefix exists, increment the running number
             last_booking_no = result[0]
             try:
                 running_number = int(last_booking_no[4:]) + 1
             except (ValueError, IndexError):
-                # ถ้าแปลงไม่ได้ให้เริ่มใหม่ที่ 1
                 running_number = 1
         else:
-            # If no booking number with this prefix exists, start at 1
             running_number = 1
         
         # สร้าง booking number และตรวจสอบว่าไม่ซ้ำ
-        max_attempts = 1000  # ป้องกัน infinite loop
+        max_attempts = 1000
         booking_no = None
         
         for attempt in range(max_attempts):
-            # Format the booking number: YYMMXXXXX (where XXXXX is a 5-digit running number)
-            temp_booking_no = f"{prefix}{running_number:05d}"
+            temp_booking_no = f"T{prefix}{running_number:05d}"
             
-            # ตรวจสอบว่า booking_no นี้มีอยู่แล้วหรือไม่
-            check_query = "SELECT booking_no FROM tour_motobike_rental WHERE booking_no = %s"
+            # ⚠️ เปลี่ยนจาก tour_motobike_rental เป็น tour_rental
+            check_query = "SELECT booking_no FROM tour_rental WHERE booking_no = %s"
             cursor.execute(check_query, (temp_booking_no,))
             exists = cursor.fetchone()
             
             if not exists:
-                # ถ้าไม่มีอยู่แล้ว ใช้ booking_no นี้
                 booking_no = temp_booking_no
                 break
             else:
-                # ถ้ามีอยู่แล้ว เพิ่ม running_number แล้วลองใหม่
                 running_number += 1
         
         if not booking_no:
             return jsonify({"success": False, "message": "Unable to generate unique booking number"})
 
-        # Get form data
+        # Get form data (เหมือนเดิม)
         customer_name = request.form.get('name', '')
         customer_surname = request.form.get('surname', '')
         room = request.form.get('room', '')
-        experience_type = request.form.get('experienceType', '')
+        # ⚠️ ไม่ต้องดึง experience_type แล้ว
         company_name = request.form.get('company', '')
         detail = request.form.get('detail', '')
         pickup_time = request.form.get('time', '')
@@ -350,30 +357,29 @@ def submit_tour_booking():
         price_per_person = request.form.get('price', '0')
         payment_status = request.form.get('status', '')
         staff_name = request.form.get('staffName', '')
-        start_booking_date = request.form.get('searchDate', '')
-        end_booking_date = request.form.get('searchDateTo', '')
+        payment_method = request.form.get('paymentmethod', '') # อย่าลืมใส่ variable = paymentmethod ตัวนี้ใน tour_rental และ tour_transfer
+        remark = request.form.get('remark', '') # อย่าลืมใส่ variable = remark ตัวนี้ใน tour_rental และ tour_transfer
+        discount = request.form.get('discount', '')
         
-        # Calculate total received (price per person * quantity)
+        # Calculate total received
         received = float(price_per_person) * int(quantity) if price_per_person and quantity else 0
-        
-        # Set booking date to today
         booking_date = date.today().isoformat()
         
-        # Validate required fields
-        if not all([customer_name, customer_surname, room, experience_type, 
+        # Validate required fields (ลบ experience_type ออก)
+        if not all([customer_name, customer_surname, room, 
                    company_name, detail, pickup_time, travel_date, 
-                   quantity, price_per_person, payment_status, staff_name]):
+                   quantity, price_per_person, payment_status, staff_name, payment_method]):
             cursor.close()
             conn.close()
             return jsonify({"success": False, "message": "Please fill in all required fields"})
         
-        # Insert data into the database
+        # ⚠️ Insert ลงตาราง tour_rental
         query = """
-        INSERT INTO tour_motobike_rental (
+        INSERT INTO tour_rental (
             travel_date, pickup_time, booking_date, booking_no, 
             customer_name, customer_surname, room, company_name, 
             detail, quantity, received, payment_status, 
-            staff_name, experience_type, start_booking_date, end_booking_date
+            staff_name, payment_method, remark, discount
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
@@ -381,7 +387,7 @@ def submit_tour_booking():
             travel_date, pickup_time, booking_date, booking_no,
             customer_name, customer_surname, room, company_name,
             detail, quantity, received, payment_status,
-            staff_name, experience_type, start_booking_date, end_booking_date
+            staff_name, payment_method, remark, discount
         )
         
         cursor.execute(query, values)
@@ -392,13 +398,12 @@ def submit_tour_booking():
         
         return jsonify({
             "success": True, 
-            "message": "Booking successfully submitted", 
+            "message": "Tour booking successfully submitted", 
             "booking_no": booking_no,
             "total_amount": received
         })
     
     except Exception as e:
-        # ปิดการเชื่อมต่อในกรณีเกิด error
         try:
             if 'cursor' in locals():
                 cursor.close()
@@ -409,36 +414,32 @@ def submit_tour_booking():
         
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
 
-@app.route("/tour_and_motorbike_form")
+@app.route("/tour_rental_form")
 @login_required
 def view_tour_bookings():
     try:
-        # เชื่อมต่อกับฐานข้อมูล
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)  # ใช้ dictionary cursor เพื่อให้ได้ผลลัพธ์เป็น dictionary
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # ดึงข้อมูลทั้งหมดจากตาราง
+        # ดึงข้อมูล bookings
         query = """
-        SELECT 
-            *
-        FROM tour_motobike_rental
+        SELECT * FROM tour_rental
         ORDER BY booking_date DESC, booking_no DESC
         LIMIT 50
         """
-        
         cursor.execute(query)
         bookings = cursor.fetchall()
         
-        # แปลงรูปแบบวันที่และเวลา
+        # ⚠️ เพิ่มส่วนนี้ - ดึง booking_list สำหรับ dropdown
+        cursor.execute("SELECT DISTINCT booking_no, customer_name, customer_surname FROM tour_rental ORDER BY booking_no DESC")
+        booking_list = cursor.fetchall()
+        
+        # แปลงวันที่และเวลา (โค้ดเดิม...)
         for booking in bookings:
             if booking['travel_date']:
                 booking['travel_date'] = booking['travel_date'].strftime('%d/%m/%Y')
             if booking['booking_date']:
                 booking['booking_date'] = booking['booking_date'].strftime('%d/%m/%Y')
-            if booking['start_booking_date']:
-                booking['start_booking_date'] = booking['start_booking_date'].strftime('%d/%m/%Y')
-            if booking['end_booking_date']:
-                booking['end_booking_date'] = booking['end_booking_date'].strftime('%d/%m/%Y')
             
             # แก้ไขส่วนนี้ - ตรวจสอบว่า pickup_time เป็น datetime.time ไม่ใช่ timedelta
             if booking['pickup_time']:
@@ -454,7 +455,10 @@ def view_tour_bookings():
         cursor.close()
         conn.close()
         
-        return render_template('P1_tour_and_motorbike_form.html', bookings=bookings)
+        # ⚠️ เพิ่ม booking_list ในการ return
+        return render_template('P1_tour_form.html', 
+                             bookings=bookings,
+                             booking_list=booking_list) 
     
     except Exception as e:
         return f"Error: {str(e)}"
@@ -494,27 +498,39 @@ def inject_room_list():
         
 
 # ---- อัพเดต Search Bookings ----
-@app.route("/search_bookings", methods=["GET", "POST"])
+@app.route("/search_tour_bookings", methods=["GET", "POST"])
 @login_required
-def search_bookings():
+def search_tour_bookings():
     try:
+        # ดึง booking list และ room list สำหรับ dropdown (ใช้ทั้ง GET และ POST)
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # ดึง booking list สำหรับ dropdown
+        cursor.execute("SELECT DISTINCT booking_no, customer_name, customer_surname FROM tour_rental ORDER BY booking_no DESC")
+        booking_list = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
         if request.method == "POST":
             # รับค่าจากฟอร์มค้นหา
-            start_date = request.form.get('start_date', '')
-            end_date = request.form.get('end_date', '')
-            room = request.form.get('room', '')
-            experience_type = request.form.get('experience_type', '')
+            start_date = request.form.get('travel_date', '')
+            end_date = request.form.get('travel_date', '')
+            booking_no = request.form.get('booking_no', '')
+            name_surname = request.form.get('name_surname', '')
             
             # เชื่อมต่อกับฐานข้อมูล
             conn = get_db_connection()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
-            # สร้าง query พื้นฐาน
+            # ⚠️ เปลี่ยนจาก tour_motobike_rental เป็น tour_rental
             query = """
             SELECT 
                 booking_no, 
                 travel_date, 
                 pickup_time,
+                booking_date,
                 customer_name, 
                 customer_surname, 
                 room, 
@@ -522,13 +538,12 @@ def search_bookings():
                 detail, 
                 quantity, 
                 received, 
-                payment_status, 
-                staff_name, 
-                experience_type, 
-                start_booking_date, 
-                end_booking_date,
-                booking_date
-            FROM tour_motobike_rental
+                payment_status,
+                payment_medthod, 
+                staff_name,
+                remark,
+                discount
+            FROM tour_rental
             WHERE 1=1
             """
             
@@ -543,13 +558,21 @@ def search_bookings():
                 query += " AND travel_date <= %s"
                 params.append(end_date)
             
-            if room:
-                query += " AND room = %s"
-                params.append(room)
-            
-            if experience_type and experience_type != 'all':
-                query += " AND experience_type = %s"
-                params.append(experience_type)
+            if booking_no:
+                query += " AND booking_no = %s"
+                params.append(booking_no)
+                
+            if name_surname:
+                # แยกชื่อและนามสกุล
+                name_parts = name_surname.strip().split(' ', 1)
+                if len(name_parts) == 2:
+                    first_name, last_name = name_parts
+                    query += " AND customer_name = %s AND customer_surname = %s"
+                    params.extend([first_name, last_name])
+                else:
+                    # ถ้าไม่สามารถแยกได้ ให้ค้นหาจากชื่อเต็ม
+                    query += " AND CONCAT(customer_name, ' ', customer_surname) = %s"
+                    params.append(name_surname)
             
             query += " ORDER BY travel_date DESC, booking_no DESC"
             
@@ -562,17 +585,11 @@ def search_bookings():
                     booking['travel_date'] = booking['travel_date'].strftime('%d/%m/%Y')
                 if booking['booking_date']:
                     booking['booking_date'] = booking['booking_date'].strftime('%d/%m/%Y')
-                if booking['start_booking_date']:
-                    booking['start_booking_date'] = booking['start_booking_date'].strftime('%d/%m/%Y')
-                if booking['end_booking_date']:
-                    booking['end_booking_date'] = booking['end_booking_date'].strftime('%d/%m/%Y')
                 
-                # แก้ไขส่วนนี้ - ตรวจสอบว่า pickup_time เป็น datetime.time ไม่ใช่ timedelta
                 if booking['pickup_time']:
                     if hasattr(booking['pickup_time'], 'strftime'):
                         booking['pickup_time'] = booking['pickup_time'].strftime('%H:%M')
                     else:
-                        # ถ้าเป็น timedelta ให้แปลงเป็นรูปแบบชั่วโมง:นาที
                         total_seconds = int(booking['pickup_time'].total_seconds())
                         hours = total_seconds // 3600
                         minutes = (total_seconds % 3600) // 60
@@ -581,23 +598,16 @@ def search_bookings():
             cursor.close()
             conn.close()
             
-            # ดึงข้อมูล room list สำหรับ dropdown ในหน้าค้นหา
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            query = "SELECT room FROM room ORDER BY room"
-            cursor.execute(query)
-            room_results = cursor.fetchall()
-            room_list = [room[0] for room in room_results]
-            cursor.close()
-            conn.close()
-            
-            return render_template('P1_tour_and_motorbike_form.html', bookings=bookings, 
-                                 search_start_date=start_date, search_end_date=end_date, 
-                                 search_room=room, search_experience_type=experience_type,
-                                 room_list=room_list)
+            return render_template('P1_tour_form.html', 
+                                 bookings=bookings,
+                                 booking_list=booking_list,
+                                 search_start_date=start_date, 
+                                 search_end_date=end_date, 
+                                 search_booking_no=booking_no,
+                                 search_name_surname=name_surname)
         else:
-            # ถ้าเป็น GET request ให้ redirect ไปที่หน้าแสดงการจองทั้งหมด
-            return redirect(url_for('view_tour_bookings'))
+            # ⚠️ GET request - แสดงหน้า search form พร้อม dropdown data
+            return render_template('view_tour_bookings')
     
     except Exception as e:
         return f"Error: {str(e)}"
@@ -610,6 +620,9 @@ def cancel_bookings():
         # รับค่า booking_no ที่ถูกเลือกจากฟอร์ม
         selected_bookings = request.form.getlist('selected_bookings')
         
+        # ⚠️ เพิ่มตัวนี้ - รับประเภทจาก form
+        booking_type = request.form.get('booking_type', 'tour')  # default เป็น tour
+        
         if not selected_bookings:
             return jsonify({"success": False, "message": "No bookings selected"})
         
@@ -617,9 +630,12 @@ def cancel_bookings():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # ⚠️ เลือกตารางตามประเภท
+        table_name = 'tour_rental' if booking_type == 'tour' else 'motorbike_rental'
+        
         # ลบข้อมูลที่ถูกเลือก
         placeholders = ', '.join(['%s'] * len(selected_bookings))
-        query = f"DELETE FROM tour_motobike_rental WHERE booking_no IN ({placeholders})"
+        query = f"DELETE FROM {table_name} WHERE booking_no IN ({placeholders})"
         
         cursor.execute(query, selected_bookings)
         conn.commit()
@@ -645,6 +661,9 @@ def get_booking_details():
         # รับค่า booking_no จากการ request
         booking_no = request.form.get('booking_no')
         
+        # ⚠️ เพิ่มตัวนี้ - รับประเภทจาก form
+        booking_type = request.form.get('booking_type', 'tour')  # default เป็น tour
+        
         if not booking_no:
             return jsonify({"success": False, "message": "No booking selected"})
         
@@ -652,20 +671,24 @@ def get_booking_details():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
+        # ⚠️ เลือกตารางตามประเภท
+        if booking_type == 'tour':
+            main_table = 'tour_rental'
+            price_table = 'tour_tabel'
+        else:
+            main_table = 'motorbike_rental'
+            price_table = 'motorbike_tabel'
+        
         # ดึงข้อมูลการจองพร้อม JOIN เพื่อดึงราคาต่อคนจากตารางที่เกี่ยวข้อง
-        query = """
+        query = f"""
         SELECT 
-            tmr.*,
-            CASE 
-                WHEN tmr.experience_type = 'tour' THEN tt.received
-                WHEN tmr.experience_type = 'motorbike' THEN mt.received
-                ELSE tmr.received / tmr.quantity
-            END as price_per_person
-        FROM tour_motobike_rental tmr
-        LEFT JOIN tour_tabel tt ON tmr.experience_type = 'tour' AND tmr.detail = tt.detail
-        LEFT JOIN motorbike_tabel mt ON tmr.experience_type = 'motorbike' AND tmr.detail = mt.detail
-        WHERE tmr.booking_no = %s
+            mr.*,
+            pt.received as price_per_person
+        FROM {main_table} mr
+        LEFT JOIN {price_table} pt ON mr.detail = pt.detail AND mr.company_name = pt.company_name
+        WHERE mr.booking_no = %s
         """
+        
         cursor.execute(query, (booking_no,))
         booking = cursor.fetchone()
         
@@ -675,17 +698,13 @@ def get_booking_details():
         if not booking:
             return jsonify({"success": False, "message": "Booking not found"})
         
-        # แปลงวันที่และเวลาให้อยู่ในรูปแบบที่เหมาะสม
+        # แปลงวันที่และเวลาให้อยู่ในรูปแบบที่เหมาะสม (เหมือนเดิม)
         if booking['travel_date']:
             booking['travel_date'] = booking['travel_date'].isoformat()
         if booking['booking_date']:
             booking['booking_date'] = booking['booking_date'].isoformat()
-        if booking['start_booking_date'] and booking['start_booking_date'] != '0000-00-00':
-            booking['start_booking_date'] = booking['start_booking_date'].isoformat()
-        if booking['end_booking_date'] and booking['end_booking_date'] != '0000-00-00':
-            booking['end_booking_date'] = booking['end_booking_date'].isoformat()
         
-        # แปลงเวลา
+        # แปลงเวลา (เหมือนเดิม)
         if booking['pickup_time']:
             if hasattr(booking['pickup_time'], 'strftime'):
                 booking['pickup_time'] = booking['pickup_time'].strftime('%H:%M')
@@ -700,6 +719,9 @@ def get_booking_details():
         if booking['price_per_person']:
             booking['price_per_person'] = float(booking['price_per_person'])
         
+        # ⚠️ เพิ่ม booking_type กลับไปด้วย
+        booking['booking_type'] = booking_type
+        
         return jsonify({"success": True, "booking": booking})
         
     except Exception as e:
@@ -712,10 +734,13 @@ def update_booking():
     try:
         # รับค่าจากฟอร์มแก้ไข
         booking_no = request.form.get('booking_no')
+        
+        # ⚠️ เพิ่มตัวนี้ - รับประเภทจาก form
+        booking_type = request.form.get('booking_type', 'tour')
+        
         customer_name = request.form.get('name', '')
         customer_surname = request.form.get('surname', '')
         room = request.form.get('room', '')
-        experience_type = request.form.get('experienceType', '')
         company_name = request.form.get('company', '')
         detail = request.form.get('detail', '')
         pickup_time = request.form.get('time', '')
@@ -723,7 +748,10 @@ def update_booking():
         quantity = request.form.get('persons', '0')
         price_per_person = request.form.get('price', '0')
         payment_status = request.form.get('status', '')
+        payment_method = request.form.get('paymentmethod', '') # อย่าลืมใส่ variable = paymentmethod ตัวนี้ใน tour_rental และ tour_transfer
+        remark = request.form.get('remark', '') # อย่าลืมใส่ variable = remark ตัวนี้ใน tour_rental และ tour_transfer
         staff_name = request.form.get('staffName', '')
+        discount = request.form.get('discount', '')
         
         if not booking_no:
             return jsonify({"success": False, "message": "Booking number is required"})
@@ -735,9 +763,12 @@ def update_booking():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # ⚠️ เลือกตารางตามประเภท
+        table_name = 'tour_rental' if booking_type == 'tour' else 'motorbike_rental'
+        
         # อัปเดตข้อมูลในฐานข้อมูล
-        query = """
-        UPDATE tour_motobike_rental SET
+        query = f"""
+        UPDATE {table_name} SET
             travel_date = %s,
             pickup_time = %s,
             customer_name = %s,
@@ -748,15 +779,17 @@ def update_booking():
             quantity = %s,
             received = %s,
             payment_status = %s,
+            payment_method = %s,
             staff_name = %s,
-            experience_type = %s
+            remark = %s
+            discount = %s
         WHERE booking_no = %s
         """
         
         values = (
             travel_date, pickup_time, customer_name, customer_surname,
             room, company_name, detail, quantity, received,
-            payment_status, staff_name, experience_type, booking_no
+            payment_status, payment_method, staff_name, remark, discount, booking_no
         )
         
         cursor.execute(query, values)
@@ -782,18 +815,24 @@ def generate_excel_form():
         # รับ booking number จาก request
         booking_no = request.form.get('booking_no')
         
+        # ⚠️ เพิ่มตัวนี้ - รับประเภทจาก form
+        booking_type = request.form.get('booking_type', 'tour')  # default เป็น tour
+        
         # ตรวจสอบว่ามี booking number หรือไม่
         if not booking_no:
             return jsonify({"success": False, "message": "Booking number not specified"}), 400
         
-        print(f"Processing Excel generation for booking: {booking_no}")  # Debug log
+        print(f"Processing Excel generation for {booking_type} booking: {booking_no}")  # Debug log
         
         # เชื่อมต่อฐานข้อมูล
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
+        # ⚠️ เลือกตารางตามประเภท
+        table_name = 'tour_rental' if booking_type == 'tour' else 'motorbike_rental'
+        
         # ดึงข้อมูลการจอง
-        query = """
+        query = f"""
         SELECT 
             booking_no, 
             booking_date, 
@@ -807,9 +846,12 @@ def generate_excel_form():
             staff_name, 
             received,
             quantity,
-            detail
+            detail,
+            payment_method,
+            remark,
+            discount
         FROM 
-            tour_motobike_rental 
+            {table_name} 
         WHERE 
             booking_no = %s
         """
@@ -825,18 +867,21 @@ def generate_excel_form():
         
         # สร้างไฟล์ Excel
         try:
-            excel_file = create_excel_form(booking)
+            excel_file = create_excel_form(booking, booking_type)  # ⚠️ ส่ง booking_type ไปด้วย
             print(f"Excel file created at: {excel_file}")  # Debug log
             
             # ปิดการเชื่อมต่อฐานข้อมูล
             cursor.close()
             conn.close()
             
+            # ⚠️ เปลี่ยนชื่อไฟล์ตามประเภท
+            file_prefix = "Tour" if booking_type == 'tour' else "Motorbike"
+            
             # ส่งไฟล์กลับไปยังผู้ใช้
             return send_file(
                 excel_file,
                 as_attachment=True,
-                download_name=f"Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                download_name=f"{file_prefix}_Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.xlsx",
                 mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
             
@@ -848,17 +893,19 @@ def generate_excel_form():
         print(f"General error: {str(e)}")  # Debug log
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
 
-def create_excel_form(booking):
+def create_excel_form(booking, booking_type='tour'):  # ⚠️ เพิ่ม parameter
     """Create Excel form from booking data"""
     # Define template path in static folder
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    template_path = os.path.join(script_dir, 'static', 'templates', 'booking_template.xlsx')
     
-    # ตรวจสอบว่าไฟล์ template มีอยู่จริง
+    # ⚠️ เลือก template ตามประเภท (ถ้าต้องการใช้ template แยก)
+    template_filename = 'booking_template.xlsx'  # หรือจะแยกเป็น tour_template.xlsx, motorbike_template.xlsx
+    template_path = os.path.join(script_dir, 'static', 'templates', template_filename)
+    
+    # ตรวจสอบว่าไฟล์ template มีอยู่จริง (เหมือนเดิม)
     if not os.path.exists(template_path):
-        print(f"Template not found at: {template_path}")  # Debug log
+        print(f"Template not found at: {template_path}")
         
-        # ตรวจสอบโฟลเดอร์
         templates_dir = os.path.join(script_dir, 'static', 'templates')
         if not os.path.exists(templates_dir):
             os.makedirs(templates_dir)
@@ -866,11 +913,11 @@ def create_excel_form(booking):
         
         raise FileNotFoundError(f"Not found Excel template at: {template_path}")
     
-    # โหลด Excel template
+    # โหลด Excel template (เหมือนเดิม)
     workbook = openpyxl.load_workbook(template_path)
     sheet = workbook.active
     
-    # Cell mappings ตามที่กำหนด
+    # Cell mappings ตามที่กำหนด (เหมือนเดิม)
     cell_mappings = {
         "booking_date": ["J3", "J30"],
         "booking_no": ["J4", "J31"],
@@ -881,7 +928,9 @@ def create_excel_form(booking):
         "payment_status": ["D22", "D49"],
         "staff_name": ["B25", "B52"],
         "detail": ["D16", "D43"],
-        "price": ["J16", "J43"]
+        "price": ["J16", "J43"],
+        "payment_method": ["H22", "H49"],
+        "remark": ["D21", "D48"]
     }
     
     # Formula cells
@@ -949,60 +998,53 @@ def create_excel_form(booking):
     
     return temp_file
 
-@app.route("/export_tour_motorbike", methods=["POST"])
+@app.route("/export_tour", methods=["POST"])
 @login_required
-def export_tour_motorbike():
+def export_tour():
     try:
         # Get filter parameters
         filter_type = request.form.get('filter_type', '')
-        experience_type = request.form.get('experience_type', 'all')
         payment_status = request.form.get('payment_status', 'all')
         
-        # Base query with JOIN to get paid amount from respective tables
+        # ⚠️ Base query เปลี่ยนจาก tour_motobike_rental เป็น tour_rental
         query = """
         SELECT 
-            tmr.booking_date,
-            tmr.booking_no, 
-            tmr.travel_date, 
-            tmr.customer_name, 
-            tmr.customer_surname, 
-            tmr.company_name,
-            tmr.detail,
-            tmr.staff_name,
-            tmr.quantity, 
-            tmr.received,
-            tmr.payment_status,
-            tmr.experience_type,
-            tmr.pickup_time,
-            tmr.room,
-            CASE 
-                WHEN tmr.experience_type = 'tour' THEN tt.paid
-                WHEN tmr.experience_type = 'motorbike' THEN mt.paid
-                ELSE 0
-            END as paid
-        FROM tour_motobike_rental tmr
-        LEFT JOIN tour_tabel tt ON tmr.experience_type = 'tour' 
-                                   AND tmr.detail = tt.detail 
-                                   AND tmr.company_name = tt.company_name
-        LEFT JOIN motorbike_tabel mt ON tmr.experience_type = 'motorbike' 
-                                        AND tmr.detail = mt.detail 
-                                        AND tmr.company_name = mt.company_name
+            tr.booking_date,
+            tr.booking_no, 
+            tr.travel_date, 
+            tr.customer_name, 
+            tr.customer_surname, 
+            tr.company_name,
+            tr.detail,
+            tr.staff_name,
+            tr.quantity, 
+            tr.received,
+            tr.payment_status,
+            tr.payment_method,
+            tr.pickup_time,
+            tr.room,
+            tt.paid,
+            tr.remark,
+            tr.discount
+        FROM tour_rental tr
+        LEFT JOIN tour_tabel tt ON tr.detail = tt.detail 
+                                   AND tr.company_name = tt.company_name
         WHERE 1=1
         """
         
         params = []
         
-        # Apply date filters based on filter type
+        # Apply date filters (เหมือนเดิม)
         if filter_type == 'date':
             start_date = request.form.get('start_date', '')
             end_date = request.form.get('end_date', '')
             
             if start_date:
-                query += " AND tmr.booking_date >= %s"
+                query += " AND tr.booking_date >= %s"
                 params.append(start_date)
             
             if end_date:
-                query += " AND tmr.booking_date <= %s"
+                query += " AND tr.booking_date <= %s"
                 params.append(end_date)
                 
         elif filter_type == 'month':
@@ -1011,7 +1053,7 @@ def export_tour_motorbike():
             
             if start_month:
                 start_date = f"{start_month}-01"
-                query += " AND tmr.booking_date >= %s"
+                query += " AND tr.booking_date >= %s"
                 params.append(start_date)
             
             if end_month:
@@ -1024,7 +1066,7 @@ def export_tour_motorbike():
                     next_month = month + 1
                 
                 end_date = f"{next_year}-{next_month:02d}-01"
-                query += " AND tmr.booking_date < %s"
+                query += " AND tr.booking_date < %s"
                 params.append(end_date)
                 
         elif filter_type == 'year':
@@ -1033,39 +1075,29 @@ def export_tour_motorbike():
             
             if start_year:
                 start_date = f"{start_year}-01-01"
-                query += " AND tmr.booking_date >= %s"
+                query += " AND tr.booking_date >= %s"
                 params.append(start_date)
             
             if end_year:
                 end_date = f"{int(end_year) + 1}-01-01"
-                query += " AND tmr.booking_date < %s"
+                query += " AND tr.booking_date < %s"
                 params.append(end_date)
         
-        # Apply experience type filter
-        if experience_type == 'tour':
-            query += " AND tmr.experience_type = 'tour'"
-        elif experience_type == 'motorbike':
-            query += " AND tmr.experience_type = 'motorbike'"
-        # 'all' = no additional filter
+        # ⚠️ ลบ experience_type filter ออก
         
         # Apply payment status filter
         if payment_status == 'paid':
-            query += " AND tmr.payment_status = 'paid'"
+            query += " AND tr.payment_status = 'paid'"
         elif payment_status == 'unpaid':
-            query += " AND tmr.payment_status = 'unpaid'"
-        # 'all' = no additional filter
+            query += " AND tr.payment_status = 'unpaid'"
         
-        # Order by date and booking number
-        query += " ORDER BY tmr.booking_date DESC, tmr.booking_no DESC"
+        query += " ORDER BY tr.booking_date DESC, tr.booking_no DESC"
         
-        # Connect to database
+        # Execute query (เหมือนเดิม)
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # Execute query
         cursor.execute(query, params)
         bookings = cursor.fetchall()
-        
         cursor.close()
         conn.close()
         
@@ -1073,22 +1105,17 @@ def export_tour_motorbike():
         workbook = openpyxl.Workbook()
         sheet = workbook.active
         
-        # Set sheet title based on experience type
-        if experience_type == 'tour':
-            sheet.title = "Tour Bookings"
-        elif experience_type == 'motorbike':
-            sheet.title = "Motorbike Bookings"
-        else:
-            sheet.title = "Tour & Motorbike Bookings"
+        # ⚠️ เปลี่ยน sheet title
+        sheet.title = "Tour Bookings"
         
-        # Add headers ตามที่กำหนดไว้ตั้งแต่แรก + ข้อมูลเพิ่มเติม
+        # Headers (เหมือนเดิม แต่ลบ Type column)
         headers = [
             "Travel Date", "Time", "Booking Date", "Booking No.", "Name&Surname", 
-            "Room", "Company Name", "Detail", "Type", "Quantity", "Price / Person", 
-            "Received", "Paid", "Amount", "Staff Name"
+            "Room", "Company Name", "Detail", "Quantity", "Price / Person", 
+            "Received", "Paid", "Amount", "Staff Name", "Payment Method", "Remark", "Discount"
         ]
         
-        # Style headers
+        # Style headers (เหมือนเดิม)
         for col_num, header in enumerate(headers, 1):
             cell = sheet.cell(row=1, column=col_num)
             cell.value = header
@@ -1098,25 +1125,22 @@ def export_tour_motorbike():
             )
             cell.alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center")
         
-        # Add data rows
+        # Add data rows (ลบ exp_type_display)
         for row_num, booking in enumerate(bookings, 2):
-            # Format booking date
+            # Format dates and times (เหมือนเดิม)
             booking_date = booking['booking_date']
             if isinstance(booking_date, (date, datetime)):
                 booking_date = booking_date.strftime("%d/%m/%Y")
             
-            # Format travel date
             travel_date = booking['travel_date']
             if isinstance(travel_date, (date, datetime)):
                 travel_date = travel_date.strftime("%d/%m/%Y")
             
-            # Format pickup time
             pickup_time = ''
             if booking['pickup_time']:
                 if hasattr(booking['pickup_time'], 'strftime'):
                     pickup_time = booking['pickup_time'].strftime('%H:%M')
                 elif hasattr(booking['pickup_time'], 'total_seconds'):
-                    # ถ้าเป็น timedelta
                     total_seconds = int(booking['pickup_time'].total_seconds())
                     hours = total_seconds // 3600
                     minutes = (total_seconds % 3600) // 60
@@ -1124,22 +1148,15 @@ def export_tour_motorbike():
                 else:
                     pickup_time = str(booking['pickup_time'])
             
-            # Calculate price per person
             price_per_person = 0
             if booking['quantity'] and booking['quantity'] > 0:
                 price_per_person = booking['received'] / booking['quantity']
             
-            # Calculate amount (difference between received and paid)
             paid_amount = booking['paid'] if booking['paid'] else 0
             amount = booking['received'] - paid_amount
-            
-            # Full name
             full_name = f"{booking['customer_name']} {booking['customer_surname']}"
             
-            # Experience type display
-            exp_type_display = booking['experience_type'].title() if booking['experience_type'] else ''
-            
-            # Add row data ตาม header ใหม่
+            # ⚠️ Row data ลบ exp_type_display ออก
             row_data = [
                 travel_date,                     # Travel Date
                 pickup_time,                     # Time
@@ -1149,40 +1166,41 @@ def export_tour_motorbike():
                 booking['room'],                 # Room
                 booking['company_name'],         # Company Name
                 booking['detail'],               # Detail
-                exp_type_display,                # Type
                 booking['quantity'],             # Quantity
                 round(price_per_person, 2),      # Price / Person
                 booking['received'],             # Received
                 paid_amount,                     # Paid
-                round(amount, 2),                # Amount (Received - Paid)
-                booking['staff_name']            # Staff Name
+                round(amount, 2),                # Amount
+                booking['staff_name'],            # Staff Name
+                booking['payment_method'],                
+                booking['remark'],
+                booking['discount']
             ]
             
             for col_num, cell_value in enumerate(row_data, 1):
                 cell = sheet.cell(row=row_num, column=col_num)
                 cell.value = cell_value
         
-        # Add Total row with Excel formulas
-        if bookings:  # Only add totals if there's data
+        # Add Total row (เหมือนเดิม แต่ปรับ column numbers)
+        if bookings:
             total_row = len(bookings) + 2
-            sheet.cell(row=total_row, column=10).value = "TOTAL"
-            sheet.cell(row=total_row, column=10).font = openpyxl.styles.Font(bold=True)
+            sheet.cell(row=total_row, column=9).value = "TOTAL"
+            sheet.cell(row=total_row, column=9).font = openpyxl.styles.Font(bold=True)
             
-            # Calculate column letters for formulas
-            start_data_row = 2  # Data starts from row 2
-            end_data_row = total_row - 1  # Last data row is just before total_row
+            start_data_row = 2
+            end_data_row = total_row - 1
             
-            # Add formulas for Received (column 12), Paid (column 13), Amount (column 14)
-            sheet.cell(row=total_row, column=12).value = f"=SUM(L{start_data_row}:L{end_data_row})"
+            # ปรับ column numbers สำหรับ formulas
+            sheet.cell(row=total_row, column=11).value = f"=SUM(K{start_data_row}:K{end_data_row})"  # Received
+            sheet.cell(row=total_row, column=11).font = openpyxl.styles.Font(bold=True)
+            
+            sheet.cell(row=total_row, column=12).value = f"=SUM(L{start_data_row}:L{end_data_row})"  # Paid
             sheet.cell(row=total_row, column=12).font = openpyxl.styles.Font(bold=True)
             
-            sheet.cell(row=total_row, column=13).value = f"=SUM(M{start_data_row}:M{end_data_row})"
+            sheet.cell(row=total_row, column=13).value = f"=SUM(M{start_data_row}:M{end_data_row})"  # Amount
             sheet.cell(row=total_row, column=13).font = openpyxl.styles.Font(bold=True)
-            
-            sheet.cell(row=total_row, column=14).value = f"=SUM(N{start_data_row}:N{end_data_row})"
-            sheet.cell(row=total_row, column=14).font = openpyxl.styles.Font(bold=True)
         
-        # Auto-size columns
+        # Auto-size columns (เหมือนเดิม)
         for column in sheet.columns:
             max_length = 0
             column_letter = openpyxl.utils.get_column_letter(column[0].column)
@@ -1192,7 +1210,7 @@ def export_tour_motorbike():
                     if cell_length > max_length:
                         max_length = cell_length
             
-            adjusted_width = min(max_length + 2, 50)  # Cap at 50 characters
+            adjusted_width = min(max_length + 2, 50)
             sheet.column_dimensions[column_letter].width = adjusted_width
         
         # Create temporary file
@@ -1204,7 +1222,578 @@ def export_tour_motorbike():
         return send_file(
             temp_file.name,
             as_attachment=True,
-            download_name=f"TourMotorbike_Export_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            download_name=f"Tour_Export_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        
+    except Exception as e:
+        print(f"Export error: {str(e)}")
+        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+    
+# -------------------------------- Motorbike Page --------------------------------------------------------------
+
+@app.route("/motorbike_rental")
+@login_required
+def motorbike_rental():
+    # เชื่อมต่อกับฐานข้อมูล
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # ดึงข้อมูลห้องจากตาราง room
+    query = "SELECT room FROM room ORDER BY room"
+    cursor.execute(query)
+    room_results = cursor.fetchall()
+    rooms = [room[0] for room in room_results]
+    
+    # ดึงข้อมูล motorbike companies เท่านั้น
+    query_motorbike = "SELECT DISTINCT company_name FROM motorbike_tabel ORDER BY company_name"
+    cursor.execute(query_motorbike)
+    motorbike_companies = [company[0] for company in cursor.fetchall()]
+    
+    cursor.close()
+    conn.close()
+    
+    today = date.today().isoformat()  # YYYY-MM-DD
+    
+    
+    return render_template('P3_motorbike_rental.html',
+                         room=rooms, 
+                         today=today,
+                         motorbike_companies=motorbike_companies)
+    
+
+@app.route("/submit_motorbike_booking", methods=["POST"])
+@login_required
+def submit_motorbike_booking():
+    try:
+        # Connect to the database to get the latest booking number
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get current year and month (in format YY and MM)
+        current_date = datetime.now()
+        year_prefix = current_date.strftime("%y")  # 2-digit year (e.g., 25 for 2025)
+        month_prefix = current_date.strftime("%m")  # 2-digit month (e.g., 05 for May)
+        prefix = f"{year_prefix}{month_prefix}"  # e.g., 2505
+        
+        # Query to find the highest booking number with the current year-month prefix
+        query = """
+        SELECT booking_no FROM motorbike_rental 
+        WHERE booking_no LIKE %s 
+        ORDER BY CAST(SUBSTRING(booking_no, 5) AS INTEGER) DESC 
+        LIMIT 1
+        """
+        cursor.execute(query, (f"{prefix}%",))
+        result = cursor.fetchone()
+        
+        if result:
+            last_booking_no = result[0]
+            try:
+                running_number = int(last_booking_no[4:]) + 1
+            except (ValueError, IndexError):
+                running_number = 1
+        else:
+            running_number = 1
+        
+        
+        max_attempts = 1000
+        booking_no = None
+        
+        for attempt in range(max_attempts):
+            temp_booking_no = f"M{prefix}{running_number:05d}"
+            
+            check_query = "SELECT booking_no FROM motorbike_rental WHERE booking_no = %s"
+            cursor.execute(check_query, (temp_booking_no,))
+            exists = cursor.fetchone()
+            
+            if not exists:
+                booking_no = temp_booking_no
+                break
+            else:
+                running_number += 1
+        
+        if not booking_no:
+            return jsonify({"success": False, "message": "Unable to generate unique booking number"})
+
+        # Get form data (เหมือนเดิม)
+        customer_name = request.form.get('name', '')
+        customer_surname = request.form.get('surname', '')
+        room = request.form.get('room', '')
+        # ⚠️ ไม่ต้องดึง experience_type แล้ว
+        company_name = request.form.get('company', '')
+        detail = request.form.get('detail', '')
+        pickup_time = request.form.get('time', '')
+        travel_date = request.form.get('searchDate', '')
+        quantity = request.form.get('persons', '0')
+        price_per_person = request.form.get('price', '0')
+        payment_status = request.form.get('status', '')
+        staff_name = request.form.get('staffName', '')
+        start_booking_date = request.form.get('searchDate', '')
+        end_booking_date = request.form.get('searchDateTo', '')
+        payment_method = request.form.get('paymentmethod', '') # อย่าลืมใส่ variable = paymentmethod ตัวนี้ใน tour_rental และ tour_transfer
+        remark = request.form.get('remark', '') # อย่าลืมใส่ variable = remark ตัวนี้ใน tour_rental และ tour_transfer
+        discount = request.form.get('discount', '')
+        
+        # Calculate total received
+        received = float(price_per_person) * int(quantity) if price_per_person and quantity else 0
+        booking_date = request.form.get('searchDate', '')
+        
+        # Validate required fields (ลบ experience_type ออก)
+        if not all([customer_name, customer_surname, room, 
+                   company_name, detail, pickup_time, travel_date, 
+                   quantity, price_per_person, payment_status, staff_name, payment_method]):
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "message": "Please fill in all required fields"})
+        
+        query = """
+        INSERT INTO motorbike_rental (
+            travel_date, pickup_time, booking_date, booking_no, 
+            customer_name, customer_surname, room, company_name, 
+            detail, quantity, received, payment_status, 
+            staff_name, start_booking_date, end_booking_date, payment_method, remark, discount
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        
+        values = (
+            travel_date, pickup_time, booking_date, booking_no,
+            customer_name, customer_surname, room, company_name,
+            detail, quantity, received, payment_status,
+            staff_name, start_booking_date, end_booking_date, payment_method, remark, discount
+        )
+        
+        cursor.execute(query, values)
+        conn.commit()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True, 
+            "message": "Motorbike booking successfully submitted", 
+            "booking_no": booking_no,
+            "total_amount": received
+        })
+    
+    except Exception as e:
+        try:
+            if 'cursor' in locals():
+                cursor.close()
+            if 'conn' in locals():
+                conn.close()
+        except:
+            pass
+        
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+
+@app.route("/motorbike_rental_form")
+@login_required
+def view_motorbike_bookings():
+    try:
+        # เชื่อมต่อกับฐานข้อมูล
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # ดึงข้อมูลจากตาราง motorbike_rental เท่านั้น
+        query = """
+        SELECT 
+            *
+        FROM motorbike_rental
+        ORDER BY booking_date DESC, booking_no DESC
+        LIMIT 50
+        """
+        
+        cursor.execute(query)
+        bookings = cursor.fetchall()
+        
+        # ⚠️ เพิ่มส่วนนี้ - ดึง booking_list สำหรับ dropdown
+        cursor.execute("SELECT DISTINCT booking_no, customer_name, customer_surname FROM motorbike_rental ORDER BY booking_no DESC")
+        booking_list = cursor.fetchall()
+        
+        # แปลงรูปแบบวันที่และเวลา (เหมือนเดิม)
+        for booking in bookings:
+            if booking['travel_date']:
+                booking['travel_date'] = booking['travel_date'].strftime('%d/%m/%Y')
+            if booking['booking_date']:
+                booking['booking_date'] = booking['booking_date'].strftime('%d/%m/%Y')
+            if booking['start_booking_date'] and booking['start_booking_date']:
+                booking['start_booking_date'] = booking['start_booking_date'].strftime('%d/%m/%Y')
+            if booking['end_booking_date'] and booking['end_booking_date']:
+                booking['end_booking_date'] = booking['end_booking_date'].strftime('%d/%m/%Y')
+            
+            # แปลงเวลา
+            if booking['pickup_time']:
+                if hasattr(booking['pickup_time'], 'strftime'):
+                    booking['pickup_time'] = booking['pickup_time'].strftime('%H:%M')
+                else:
+                    total_seconds = int(booking['pickup_time'].total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    booking['pickup_time'] = f"{hours:02d}:{minutes:02d}"
+        
+        cursor.close()
+        conn.close()
+        
+        # ⚠️ เพิ่ม booking_list ในการ return
+        return render_template('P3_motorbike_form.html', 
+                             bookings=bookings,
+                             booking_list=booking_list)
+    
+    except Exception as e:
+        return f"Error: {str(e)}"
+        
+
+# ---- อัพเดต Search Bookings ----
+@app.route("/search_motorbike_bookings", methods=["GET", "POST"])
+@login_required
+def search_motorbike_bookings():
+    try:
+        if request.method == "POST":
+            # รับค่าจากฟอร์มค้นหา
+            start_date = request.form.get('start_date', '')
+            end_date = request.form.get('start_date', '')
+            booking_no = request.form.get('booking_no', '')
+            name_surname = request.form.get('name_surname', '')
+            
+            # เชื่อมต่อกับฐานข้อมูล
+            conn = get_db_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            query = """
+            SELECT 
+                booking_no, 
+                travel_date, 
+                pickup_time,
+                customer_name, 
+                customer_surname, 
+                room, 
+                company_name, 
+                detail, 
+                quantity, 
+                received, 
+                payment_status, 
+                staff_name, 
+                start_booking_date, 
+                end_booking_date,
+                booking_date,
+                payment_method,
+                remark,
+                discount
+            FROM motorbike_rental
+            WHERE 1=1
+            """
+            
+            params = []
+            
+            # เพิ่มเงื่อนไขการค้นหา
+            if start_date:
+                query += " AND travel_date >= %s"
+                params.append(start_date)
+            
+            if end_date:
+                query += " AND travel_date <= %s"
+                params.append(end_date)
+            
+            if booking_no:
+                query += " AND booking_no = %s"
+                params.append(booking_no)
+                
+            if name_surname:
+                # แยกชื่อและนามสกุล
+                name_parts = name_surname.strip().split(' ', 1)
+                if len(name_parts) == 2:
+                    first_name, last_name = name_parts
+                    query += " AND customer_name = %s AND customer_surname = %s"
+                    params.extend([first_name, last_name])
+                else:
+                    # ถ้าไม่สามารถแยกได้ ให้ค้นหาจากชื่อเต็ม
+                    query += " AND CONCAT(customer_name, ' ', customer_surname) = %s"
+                    params.append(name_surname)
+            
+            # ⚠️ ลบ experience_type filter ออก
+            
+            query += " ORDER BY travel_date DESC, booking_no DESC"
+            
+            cursor.execute(query, params)
+            bookings = cursor.fetchall()
+            
+            # แปลงรูปแบบวันที่และเวลา (เหมือนเดิม)
+            for booking in bookings:
+                if booking['travel_date']:
+                    booking['travel_date'] = booking['travel_date'].strftime('%d/%m/%Y')
+                if booking['booking_date']:
+                    booking['booking_date'] = booking['booking_date'].strftime('%d/%m/%Y')
+                if booking['start_booking_date']:
+                    booking['start_booking_date'] = booking['start_booking_date'].strftime('%d/%m/%Y')
+                if booking['end_booking_date']:
+                    booking['end_booking_date'] = booking['end_booking_date'].strftime('%d/%m/%Y')
+                
+                if booking['pickup_time']:
+                    if hasattr(booking['pickup_time'], 'strftime'):
+                        booking['pickup_time'] = booking['pickup_time'].strftime('%H:%M')
+                    else:
+                        total_seconds = int(booking['pickup_time'].total_seconds())
+                        hours = total_seconds // 3600
+                        minutes = (total_seconds % 3600) // 60
+                        booking['pickup_time'] = f"{hours:02d}:{minutes:02d}"
+            
+            # ดึง booking list สำหรับ dropdown
+            cursor.execute("SELECT DISTINCT booking_no, customer_name, customer_surname FROM motorbike_rental ORDER BY booking_no DESC")
+            booking_list = cursor.fetchall()
+            
+            cursor.close()
+            conn.close()
+            
+            # ดึงข้อมูล room list สำหรับ dropdown
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            query = "SELECT room FROM room ORDER BY room"
+            cursor.execute(query)
+            room_results = cursor.fetchall()
+            room_list = [room[0] for room in room_results]
+            cursor.close()
+            conn.close()
+            
+            return render_template('P3_motorbike_form.html', 
+                                 bookings=bookings,
+                                 booking_list=booking_list,
+                                 search_start_date=start_date, 
+                                 search_end_date=end_date, 
+                                 search_booking_no=booking_no,
+                                 search_name_surname=name_surname,
+                                 room_list=room_list)
+        else:
+            # ถ้าเป็น GET request ให้ redirect ไปที่หน้าแสดงการจองทั้งหมด
+            return redirect(url_for('view_motorbike_bookings'))
+    
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+
+@app.route("/export_motorbike", methods=["POST"])
+@login_required
+def export_motorbike():
+    try:
+        # Get filter parameters
+        filter_type = request.form.get('filter_type', '')
+        payment_status = request.form.get('payment_status', 'all')
+        
+        query = """
+        SELECT 
+            tr.booking_date,
+            tr.booking_no, 
+            tr.travel_date, 
+            tr.customer_name, 
+            tr.customer_surname, 
+            tr.company_name,
+            tr.detail,
+            tr.staff_name,
+            tr.quantity, 
+            tr.received,
+            tr.payment_status,
+            tr.pickup_time,
+            tr.room,
+            tt.paid,
+            tt.payment_method,
+            tt.remark,
+            tt.discount
+        FROM motorbike_rental tr
+        LEFT JOIN motorbike_tabel tt ON tr.detail = tt.detail 
+                                   AND tr.company_name = tt.company_name
+        WHERE 1=1
+        """
+        
+        params = []
+        
+        # Apply date filters (เหมือนเดิม)
+        if filter_type == 'date':
+            start_date = request.form.get('start_date', '')
+            end_date = request.form.get('end_date', '')
+            
+            if start_date:
+                query += " AND tr.booking_date >= %s"
+                params.append(start_date)
+            
+            if end_date:
+                query += " AND tr.booking_date <= %s"
+                params.append(end_date)
+                
+        elif filter_type == 'month':
+            start_month = request.form.get('start_month', '')
+            end_month = request.form.get('end_month', '')
+            
+            if start_month:
+                start_date = f"{start_month}-01"
+                query += " AND tr.booking_date >= %s"
+                params.append(start_date)
+            
+            if end_month:
+                year, month = map(int, end_month.split('-'))
+                if month == 12:
+                    next_year = year + 1
+                    next_month = 1
+                else:
+                    next_year = year
+                    next_month = month + 1
+                
+                end_date = f"{next_year}-{next_month:02d}-01"
+                query += " AND tr.booking_date < %s"
+                params.append(end_date)
+                
+        elif filter_type == 'year':
+            start_year = request.form.get('start_year', '')
+            end_year = request.form.get('end_year', '')
+            
+            if start_year:
+                start_date = f"{start_year}-01-01"
+                query += " AND tr.booking_date >= %s"
+                params.append(start_date)
+            
+            if end_year:
+                end_date = f"{int(end_year) + 1}-01-01"
+                query += " AND tr.booking_date < %s"
+                params.append(end_date)
+        
+        # ⚠️ ลบ experience_type filter ออก
+        
+        # Apply payment status filter
+        if payment_status == 'paid':
+            query += " AND tr.payment_status = 'paid'"
+        elif payment_status == 'unpaid':
+            query += " AND tr.payment_status = 'unpaid'"
+        
+        query += " ORDER BY tr.booking_date DESC, tr.booking_no DESC"
+        
+        # Execute query (เหมือนเดิม)
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute(query, params)
+        bookings = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        
+        # Create Excel file
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        
+        # ⚠️ เปลี่ยน sheet title
+        sheet.title = "motorbike Bookings"
+        
+        # Headers (เหมือนเดิม แต่ลบ Type column)
+        headers = [
+            "Travel Date", "Time", "Booking Date", "Booking No.", "Name&Surname", 
+            "Room", "Company Name", "Detail", "Quantity", "Price / Person", 
+            "Received", "Paid", "Amount", "Staff Name", "Payment Method", "Remark", "Discount"
+        ]
+        
+        # Style headers (เหมือนเดิม)
+        for col_num, header in enumerate(headers, 1):
+            cell = sheet.cell(row=1, column=col_num)
+            cell.value = header
+            cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
+            cell.fill = openpyxl.styles.PatternFill(
+                start_color="366092", end_color="366092", fill_type="solid"
+            )
+            cell.alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center")
+        
+        # Add data rows (ลบ exp_type_display)
+        for row_num, booking in enumerate(bookings, 2):
+            # Format dates and times (เหมือนเดิม)
+            booking_date = booking['booking_date']
+            if isinstance(booking_date, (date, datetime)):
+                booking_date = booking_date.strftime("%d/%m/%Y")
+            
+            travel_date = booking['travel_date']
+            if isinstance(travel_date, (date, datetime)):
+                travel_date = travel_date.strftime("%d/%m/%Y")
+            
+            pickup_time = ''
+            if booking['pickup_time']:
+                if hasattr(booking['pickup_time'], 'strftime'):
+                    pickup_time = booking['pickup_time'].strftime('%H:%M')
+                elif hasattr(booking['pickup_time'], 'total_seconds'):
+                    total_seconds = int(booking['pickup_time'].total_seconds())
+                    hours = total_seconds // 3600
+                    minutes = (total_seconds % 3600) // 60
+                    pickup_time = f"{hours:02d}:{minutes:02d}"
+                else:
+                    pickup_time = str(booking['pickup_time'])
+            
+            price_per_person = 0
+            if booking['quantity'] and booking['quantity'] > 0:
+                price_per_person = booking['received'] / booking['quantity']
+            
+            paid_amount = booking['paid'] if booking['paid'] else 0
+            amount = booking['received'] - paid_amount
+            full_name = f"{booking['customer_name']} {booking['customer_surname']}"
+            
+            # ⚠️ Row data ลบ exp_type_display ออก
+            row_data = [
+                travel_date,                     # Travel Date
+                pickup_time,                     # Time
+                booking_date,                    # Booking Date
+                booking['booking_no'],           # Booking No.
+                full_name,                       # Name&Surname
+                booking['room'],                 # Room
+                booking['company_name'],         # Company Name
+                booking['detail'],               # Detail
+                booking['quantity'],             # Quantity
+                round(price_per_person, 2),      # Price / Person
+                booking['received'],             # Received
+                paid_amount,                     # Paid
+                round(amount, 2),                # Amount
+                booking['staff_name'],            # Staff Name
+                booking['payment_method'],
+                booking['remark'],
+                booking['discount']
+            ]
+            
+            for col_num, cell_value in enumerate(row_data, 1):
+                cell = sheet.cell(row=row_num, column=col_num)
+                cell.value = cell_value
+        
+        # Add Total row (เหมือนเดิม แต่ปรับ column numbers)
+        if bookings:
+            total_row = len(bookings) + 2
+            sheet.cell(row=total_row, column=9).value = "TOTAL"  # เปลี่ยนจาก column 10 เป็น 9
+            sheet.cell(row=total_row, column=9).font = openpyxl.styles.Font(bold=True)
+            
+            start_data_row = 2
+            end_data_row = total_row - 1
+            
+            # ปรับ column numbers สำหรับ formulas
+            sheet.cell(row=total_row, column=11).value = f"=SUM(K{start_data_row}:K{end_data_row})"  # Received
+            sheet.cell(row=total_row, column=11).font = openpyxl.styles.Font(bold=True)
+            
+            sheet.cell(row=total_row, column=12).value = f"=SUM(L{start_data_row}:L{end_data_row})"  # Paid
+            sheet.cell(row=total_row, column=12).font = openpyxl.styles.Font(bold=True)
+            
+            sheet.cell(row=total_row, column=13).value = f"=SUM(M{start_data_row}:M{end_data_row})"  # Amount
+            sheet.cell(row=total_row, column=13).font = openpyxl.styles.Font(bold=True)
+        
+        # Auto-size columns (เหมือนเดิม)
+        for column in sheet.columns:
+            max_length = 0
+            column_letter = openpyxl.utils.get_column_letter(column[0].column)
+            for cell in column:
+                if cell.value:
+                    cell_length = len(str(cell.value))
+                    if cell_length > max_length:
+                        max_length = cell_length
+            
+            adjusted_width = min(max_length + 2, 50)
+            sheet.column_dimensions[column_letter].width = adjusted_width
+        
+        # Create temporary file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        workbook.save(temp_file.name)
+        temp_file.close()
+        
+        # Send the file
+        return send_file(
+            temp_file.name,
+            as_attachment=True,
+            download_name=f"Motorbike_Export_{datetime.now().strftime('%Y%m%d')}.xlsx",
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         
@@ -1320,7 +1909,7 @@ def submit_transfer_booking():
         current_date = datetime.now()
         year_prefix = current_date.strftime("%y")  # 2-digit year (e.g., 25 for 2025)
         month_prefix = current_date.strftime("%m")  # 2-digit month (e.g., 04 for April)
-        prefix = f"{year_prefix}{month_prefix}"  # e.g., 2504
+        prefix = f"H{year_prefix}{month_prefix}"  # e.g., 2504
         
         # Query to find the highest booking number with the current year-month prefix
         query = """
@@ -1357,6 +1946,9 @@ def submit_transfer_booking():
         staff_name = request.form.get('staffName', '')
         driver_name = request.form.get('driverName', '')
         price = request.form.get('price', '0')
+        payment_method = request.form.get('paymentmethod', '') # อย่าลืมใส่ variable = paymentmethod ตัวนี้ใน tour_rental และ tour_transfer
+        remark = request.form.get('remark', '') # อย่าลืมใส่ variable = remark ตัวนี้ใน tour_rental และ tour_transfer
+        discount = request.form.get('discount', '')
         
         # Set booking date to today
         booking_date = date.today().isoformat()
@@ -1368,8 +1960,8 @@ def submit_transfer_booking():
             travel_date, pickup_time, booking_date, booking_no, 
             customer_name, customer_surname, place_from, place_to, 
             departure, arrivals, detail, quantity, received,
-            payment_status, staff_name, driver_name, price
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            payment_status, staff_name, driver_name, price, payment_method, remark, discount
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
         # 17 values ตรงกับ 17 placeholders
@@ -1377,7 +1969,7 @@ def submit_transfer_booking():
             travel_date, pickup_time, booking_date, booking_no,
             customer_name, customer_surname, place_from, place_to,
             departure, arrivals, detail, quantity, received,
-            payment_status, staff_name, driver_name, price
+            payment_status, staff_name, driver_name, price, payment_method, remark, discount
         )
         
         cursor.execute(query, values)
@@ -1469,8 +2061,8 @@ def search_transfer_bookings():
     try:
         if request.method == "POST":
             # Get search parameters
-            start_date = request.form.get('start_date', '')
-            end_date = request.form.get('end_date', '')
+            start_date = request.form.get('travel_date', '')
+            end_date = request.form.get('travel_date', '')
             
             # Connect to database
             conn = get_db_connection()
@@ -1669,6 +2261,9 @@ def update_transfer_booking():
         staff_name = request.form.get('staffName', '')
         driver_name = request.form.get('driverName', '')
         price = request.form.get('price', '0')
+        payment_method = request.form.get('paymentmethod', '') # อย่าลืมใส่ variable = paymentmethod ตัวนี้ใน tour_rental และ tour_transfer
+        remark = request.form.get('remark', '') # อย่าลืมใส่ variable = remark ตัวนี้ใน tour_rental และ tour_transfer
+        discount = request.form.get('discounr', '')
         
         if not booking_no:
             return jsonify({"success": False, "message": "Booking number is required"})
@@ -1694,7 +2289,10 @@ def update_transfer_booking():
             payment_status = %s,
             staff_name = %s,
             driver_name = %s,
-            price = %s
+            price = %s,
+            payment_method = %s,
+            remark = %s,
+            discount = %s
         WHERE booking_no = %s
         """
         
@@ -1703,7 +2301,7 @@ def update_transfer_booking():
             travel_date, pickup_time, customer_name, customer_surname,
             place_from, place_to, departure, arrivals, detail, 
             quantity, received, payment_status, staff_name, 
-            driver_name, price, booking_no  # booking_no ต้องอยู่ท้ายสุด
+            driver_name, price, payment_method, remark, discount, booking_no
         )
         
         cursor.execute(query, values)
@@ -1759,7 +2357,10 @@ def generate_excel_form_transfer():
             payment_status,
             staff_name,
             driver_name,
-            price
+            price,
+            payment_method,
+            remark,
+            discount
         FROM 
             transfer_rental 
         WHERE 
@@ -1835,7 +2436,9 @@ def create_excel_form_transfer(booking):
         "received": ["H17", "H44"],
         "detail": ["D16", "D19"],
         "payment_status": ["D22", "D49"],
-        "staff_name": ["B25", "B52"]
+        "staff_name": ["B25", "B52"],
+        "remark": ["D21", "D48"],
+        "payment_method": ["H22", "H49"]
     }
     
     
@@ -1907,6 +2510,9 @@ def export_transfers():
             tr.departure,
             tr.arrivals,
             tr.price,
+            tr.payment_method,
+            tr.remark,
+            tr.discount,
             COALESCE(tt.paid, 0) as paid
         FROM transfer_rental tr
         LEFT JOIN transfer_tabel tt ON (
@@ -2013,7 +2619,7 @@ def export_transfers():
         headers = [
             "Booking date", "Booking No.", "Name&Surname", "Driver name", 
             "Departure/Arrivals", "From", "To", "Detail", "Staff Name", 
-            "Person", "Price/Person", "Received", "Paid", "Amount"
+            "Person", "Price/Person", "Received", "Paid", "Amount", "Payment Method", "Remark", "Discount"
         ]
         
         # Style headers
@@ -2067,7 +2673,10 @@ def export_transfers():
                 round(price_per_person, 2),      # Price/Person
                 transfer['received'],            # Received
                 paid_amount,                     # Paid
-                round(amount, 2)                 # Amount (Received - Paid)
+                round(amount, 2),                 # Amount (Received - Paid)
+                transfer['payment_method'],
+                transfer['remark'],
+                transfer['discount']
             ]
             
             for col_num, cell_value in enumerate(row_data, 1):
