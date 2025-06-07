@@ -534,7 +534,11 @@ function showAlert(message, type) {
     }
 }
 
-// ฟังก์ชันสำหรับการยกเลิกการจอง (ลบข้อมูล)
+// ===============================================
+// UPDATED TRANSFER CANCEL FUNCTION WITH NAME INPUT MODAL
+// ===============================================
+
+// ฟังก์ชันสำหรับการยกเลิกการจอง Transfer - อัพเดตเวอร์ชัน
 function cancelTransfer() {
     const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
     
@@ -543,63 +547,165 @@ function cancelTransfer() {
         return;
     }
     
-    if (confirm('Are you sure you want to cancel the selected bookings?')) {
-        const form = document.getElementById('actionForm');
-        
-        // กรณีที่มีฟอร์ม
-        if (form) {
-            // ใช้ AJAX ส่งข้อมูล
-            const formData = new FormData(form);
-            
-            fetch('/cancel_transfer_bookings', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showAlert(data.message, 'success');
-                    // รีโหลดหน้าเพื่อแสดงข้อมูลล่าสุด
-                    setTimeout(function() {
-                        location.reload();
-                    }, 1500);
-                } else {
-                    showAlert(data.message, 'danger');
-                }
-            })
-            .catch(error => {
-                showAlert('An error occurred. Please try again.', 'danger');
-                console.error('Error:', error);
-            });
-        } else {
-            // กรณีที่ไม่พบฟอร์ม สร้าง FormData ใหม่
-            const formData = new FormData();
-            selectedBookings.forEach(checkbox => {
-                formData.append('selected_bookings', checkbox.value);
-            });
-            
-            fetch('/cancel_transfer_bookings', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showAlert(data.message, 'success');
-                    setTimeout(function() {
-                        location.reload();
-                    }, 1500);
-                } else {
-                    showAlert(data.message, 'danger');
-                }
-            })
-            .catch(error => {
-                showAlert('An error occurred. Please try again.', 'danger');
-                console.error('Error:', error);
-            });
+    // แสดง modal สำหรับกรอกชื่อผู้ cancel
+    showTransferCancelModal(selectedBookings);
+}
+
+// ฟังก์ชันแสดง modal สำหรับกรอกชื่อผู้ cancel (Transfer)
+function showTransferCancelModal(selectedBookings) {
+    // สร้าง modal element
+    const modalHtml = `
+        <div id="transferCancelModal" class="modal" style="display: block; z-index: 10000;">
+            <div class="modal-content" style="max-width: 400px; margin: 15% auto;">
+                <div class="modal-header">
+                    <span class="close" onclick="closeTransferCancelModal()">&times;</span>
+                    <h2>Cancel Transfer Booking(s)</h2>
+                </div>
+                <div class="modal-body" style="padding: 20px;">
+                    <p><strong>Selected transfers:</strong> ${selectedBookings.length} booking(s)</p>
+                    <div class="form-group">
+                        <label for="transferCancelName" style="display: block; margin-bottom: 8px; font-weight: bold;">
+                            Name of person cancelling:
+                        </label>
+                        <input type="text" 
+                               id="transferCancelName" 
+                               placeholder="Enter your name" 
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+                               maxlength="50"
+                               required>
+                    </div>
+                    <p style="color: #666; font-size: 12px; margin-top: 8px;">
+                        This will update the payment status to "Cancelled by [Your Name]"
+                    </p>
+                </div>
+                <div class="modal-footer" style="padding: 15px 20px; text-align: right; border-top: 1px solid #eee;">
+                    <button type="button" 
+                            onclick="closeTransferCancelModal()" 
+                            style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px; cursor: pointer;">
+                        Cancel
+                    </button>
+                    <button type="button" 
+                            onclick="confirmTransferCancel()" 
+                            style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                        Confirm Cancellation
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // เพิ่ม modal ไปยัง body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // focus ที่ input field
+    setTimeout(() => {
+        const nameInput = document.getElementById('transferCancelName');
+        if (nameInput) {
+            nameInput.focus();
         }
+    }, 100);
+    
+    // เพิ่ม event listener สำหรับ Enter key
+    document.getElementById('transferCancelName').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            confirmTransferCancel();
+        }
+    });
+}
+
+// ฟังก์ชันปิด transfer cancel modal
+function closeTransferCancelModal() {
+    const modal = document.getElementById('transferCancelModal');
+    if (modal) {
+        modal.remove();
     }
 }
+
+// ฟังก์ชันยืนยันการ cancel transfer
+function confirmTransferCancel() {
+    const nameInput = document.getElementById('transferCancelName');
+    const cancelName = nameInput ? nameInput.value.trim() : '';
+    
+    if (!cancelName) {
+        showAlert('Please enter your name.', 'warning');
+        if (nameInput) {
+            nameInput.focus();
+            nameInput.style.borderColor = 'red';
+        }
+        return;
+    }
+    
+    if (cancelName.length < 2) {
+        showAlert('Name must be at least 2 characters long.', 'warning');
+        if (nameInput) {
+            nameInput.focus();
+            nameInput.style.borderColor = 'red';
+        }
+        return;
+    }
+    
+    // ดึง selected bookings
+    const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
+    
+    if (selectedBookings.length === 0) {
+        showAlert('No bookings selected.', 'warning');
+        closeTransferCancelModal();
+        return;
+    }
+    
+    // ปิด modal
+    closeTransferCancelModal();
+    
+    // สร้าง form data
+    const formData = new FormData();
+    
+    // เพิ่ม selected bookings
+    selectedBookings.forEach(checkbox => {
+        formData.append('selected_bookings', checkbox.value);
+    });
+    
+    // เพิ่มชื่อผู้ cancel
+    formData.append('cancelled_by', cancelName);
+    
+    // ส่งคำขอ
+    fetch('/cancel_transfer_bookings', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            setTimeout(function() {
+                location.reload();
+            }, 1500);
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('An error occurred. Please try again.', 'danger');
+        console.error('Error:', error);
+    });
+}
+
+// ปิด modal เมื่อคลิกข้างนอก (Transfer)
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('transferCancelModal');
+    if (modal && event.target === modal) {
+        closeTransferCancelModal();
+    }
+});
+
+// ปิด modal เมื่อกด ESC (Transfer)
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('transferCancelModal');
+        if (modal) {
+            closeTransferCancelModal();
+        }
+    }
+});
 
 // Update transfer options for edit modal
 function updateEditTransferOptions() {

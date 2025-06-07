@@ -550,7 +550,11 @@ function initializeDiscountValidation() {
 // BOOKING MANAGEMENT FUNCTIONS
 // ===============================================
 
-// ⚠️ ฟังก์ชันยกเลิกการจอง - เพิ่ม booking_type
+// ===============================================
+// UPDATED CANCEL FUNCTIONS WITH NAME INPUT MODAL
+// ===============================================
+
+// ⚠️ ฟังก์ชันยกเลิกการจอง - เปลี่ยนเป็น modal input name
 function cancelBookings() {
     const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
     
@@ -559,32 +563,254 @@ function cancelBookings() {
         return;
     }
     
-    if (confirm('Are you sure you want to cancel the selected bookings?')) {
-        const form = document.getElementById('actionForm');
-        const formData = new FormData(form);
-        
-        // ⚠️ เพิ่ม booking_type
-        formData.append('booking_type', getCurrentBookingType());
-        
-        fetch('/cancel_bookings', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showAlert(data.message, 'success');
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                showAlert(data.message, 'danger');
-            }
-        })
-        .catch(error => {
-            showAlert('An error occurred. Please try again.', 'danger');
-            console.error('Error:', error);
-        });
+    // แสดง modal สำหรับกรอกชื่อผู้ cancel
+    showCancelModal(selectedBookings);
+}
+
+// ฟังก์ชันแสดง modal สำหรับกรอกชื่อผู้ cancel
+function showCancelModal(selectedBookings) {
+    // สร้าง modal element
+    const modalHtml = `
+        <div id="cancelModal" class="modal" style="display: block; z-index: 10000;">
+            <div class="modal-content" style="max-width: 400px; margin: 15% auto;">
+                <div class="modal-header">
+                    <span class="close" onclick="closeCancelModal()">&times;</span>
+                    <h2>Cancel Booking(s)</h2>
+                </div>
+                <div class="modal-body" style="padding: 20px;">
+                    <p><strong>Selected bookings:</strong> ${selectedBookings.length} booking(s)</p>
+                    <div class="form-group">
+                        <label for="cancelName" style="display: block; margin-bottom: 8px; font-weight: bold;">
+                            Name of person cancelling:
+                        </label>
+                        <input type="text" 
+                               id="cancelName" 
+                               placeholder="Enter your name" 
+                               style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
+                               maxlength="50"
+                               required>
+                    </div>
+                    <p style="color: #666; font-size: 12px; margin-top: 8px;">
+                        This will update the payment status to "Cancelled by [Your Name]"
+                    </p>
+                </div>
+                <div class="modal-footer" style="padding: 15px 20px; text-align: right; border-top: 1px solid #eee;">
+                    <button type="button" 
+                            onclick="closeCancelModal()" 
+                            style="background: #6c757d; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px; cursor: pointer;">
+                        Cancel
+                    </button>
+                    <button type="button" 
+                            onclick="confirmCancel()" 
+                            style="background: #dc3545; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                        Confirm Cancellation
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // เพิ่ม modal ไปยัง body
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // focus ที่ input field
+    setTimeout(() => {
+        const nameInput = document.getElementById('cancelName');
+        if (nameInput) {
+            nameInput.focus();
+        }
+    }, 100);
+    
+    // เพิ่ม event listener สำหรับ Enter key
+    document.getElementById('cancelName').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            confirmCancel();
+        }
+    });
+}
+
+// ฟังก์ชันปิด cancel modal
+function closeCancelModal() {
+    const modal = document.getElementById('cancelModal');
+    if (modal) {
+        modal.remove();
     }
 }
+
+// ฟังก์ชันยืนยันการ cancel
+function confirmCancel() {
+    const nameInput = document.getElementById('cancelName');
+    const cancelName = nameInput ? nameInput.value.trim() : '';
+    
+    if (!cancelName) {
+        showAlert('Please enter your name.', 'warning');
+        if (nameInput) {
+            nameInput.focus();
+            nameInput.style.borderColor = 'red';
+        }
+        return;
+    }
+    
+    if (cancelName.length < 2) {
+        showAlert('Name must be at least 2 characters long.', 'warning');
+        if (nameInput) {
+            nameInput.focus();
+            nameInput.style.borderColor = 'red';
+        }
+        return;
+    }
+    
+    // ดึง selected bookings
+    const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
+    
+    if (selectedBookings.length === 0) {
+        showAlert('No bookings selected.', 'warning');
+        closeCancelModal();
+        return;
+    }
+    
+    // ปิด modal
+    closeCancelModal();
+    
+    // แสดง loading
+    const loadingNotif = showLoadingNotification('Cancelling bookings...');
+    
+    // สร้าง form data
+    const form = document.getElementById('actionForm');
+    const formData = new FormData(form);
+    
+    // เพิ่มข้อมูลพิเศษ
+    formData.append('booking_type', getCurrentBookingType());
+    formData.append('cancelled_by', cancelName);
+    
+    // ส่งคำขอ
+    fetch('/cancel_bookings', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // ปิด loading
+        if (loadingNotif) {
+            hideLoadingNotification(loadingNotif);
+        }
+        
+        if (data.success) {
+            showAlert(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        // ปิด loading
+        if (loadingNotif) {
+            hideLoadingNotification(loadingNotif);
+        }
+        
+        showAlert('An error occurred. Please try again.', 'danger');
+        console.error('Error:', error);
+    });
+}
+
+// ฟังก์ชันสำหรับ restore booking (เพิ่มเติม - optional)
+function restoreBooking(bookingNo) {
+    if (!confirm('Are you sure you want to restore this cancelled booking?')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('booking_no', bookingNo);
+    formData.append('booking_type', getCurrentBookingType());
+    
+    fetch('/restore_booking', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('An error occurred. Please try again.', 'danger');
+        console.error('Error:', error);
+    });
+}
+
+// CSS สำหรับ modal (เพิ่มลงใน head หรือ CSS file)
+const cancelModalStyles = `
+<style id="cancelModalStyles">
+#cancelModal .modal-content {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#cancelModal input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+#cancelModal button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+#cancelModal .close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+}
+
+#cancelModal .close:hover {
+    color: #000;
+}
+</style>
+`;
+
+// เพิ่ม styles ตอน DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+    if (!document.getElementById('cancelModalStyles')) {
+        document.head.insertAdjacentHTML('beforeend', cancelModalStyles);
+    }
+});
+
+// ปิด modal เมื่อคลิกข้างนอก
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('cancelModal');
+    if (modal && event.target === modal) {
+        closeCancelModal();
+    }
+});
+
+// ปิด modal เมื่อกด ESC
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('cancelModal');
+        if (modal) {
+            closeCancelModal();
+        }
+    }
+});
 
 // ⚠️ ฟังก์ชันแก้ไขการจอง - เพิ่ม booking_type
 function editBooking() {
