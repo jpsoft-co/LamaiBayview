@@ -36,21 +36,24 @@ def login_required(f):
 # ---------------------------------------Connect database ---------------------------------------
 
 # Database connection
-def get_db_connection():
-    database_url = os.getenv("DATABASE_URL")
+# def get_db_connection():
+#     database_url = os.getenv("DATABASE_URL")
     
-    if database_url:
-        # สำหรับ Render.com
-        return psycopg2.connect(database_url)
-    else:
-        # สำหรับ local development
-        return psycopg2.connect(
-            host=os.getenv("DB_HOST"),
-            port=int(os.getenv("DB_PORT", 5432)),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASS"),
-            database=os.getenv("DB_NAME")
-        )
+#     if database_url:
+#         # สำหรับ Render.com
+#         return psycopg2.connect(database_url)
+#     else:
+#         # สำหรับ local development
+#         return psycopg2.connect(
+#             host=os.getenv("DB_HOST"),
+#             port=int(os.getenv("DB_PORT", 5432)),
+#             user=os.getenv("DB_USER"),
+#             password=os.getenv("DB_PASS"),
+#             database=os.getenv("DB_NAME")
+#         )
+
+        
+
 
 
 def load_data_from_file(filename):
