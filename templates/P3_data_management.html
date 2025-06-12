@@ -633,7 +633,7 @@
                 row.innerHTML = `
                     <td><input type="text" value="${item.place_from}" onchange="updateTransferData(${index}, 'place_from', this.value)"></td>
                     <td><input type="text" value="${item.place_to}" onchange="updateTransferData(${index}, 'place_to', this.value)"></td>
-                    <td><input type="number" value="${item.passengers}" onchange="updateTransferData(${index}, 'passengers', this.value)"></td>
+                    <td><input type="text" value="${item.passengers}" onchange="updateTransferData(${index}, 'passengers', this.value)"></td>
                     <td><input type="number" step="0.01" value="${item.received}" onchange="updateTransferData(${index}, 'received', this.value)"></td>
                     <td><input type="number" step="0.01" value="${item.paid}" onchange="updateTransferData(${index}, 'paid', this.value)"></td>
                     <td><button class="btn btn-delete" onclick="deleteTransferRow(${index})">Delete</button></td>
@@ -646,7 +646,7 @@
             newRow.innerHTML = `
                 <td><input type="text" id="transfer-new-from" placeholder="Enter place from"></td>
                 <td><input type="text" id="transfer-new-to" placeholder="Enter place to"></td>
-                <td><input type="number" id="transfer-new-passengers" placeholder="0"></td>
+                <td><input type="text" id="transfer-new-passengers" placeholder="Enter passengers"></td>
                 <td><input type="number" step="0.01" id="transfer-new-received" placeholder="0.00"></td>
                 <td><input type="number" step="0.01" id="transfer-new-paid" placeholder="0.00"></td>
                 <td><button class="btn btn-submit" onclick="addNewTransferRow()">Add</button></td>
@@ -654,14 +654,13 @@
         }
 
         function updateTransferData(index, field, value) {
-            transferData[index][field] = field === 'received' || field === 'paid' ? parseFloat(value) || 0 : 
-                                       field === 'passengers' ? parseInt(value) || 0 : value;
+            transferData[index][field] = field === 'received' || field === 'paid' ? parseFloat(value) || 0 : value;
         }
 
         function addNewTransferRow() {
             const place_from = document.getElementById('transfer-new-from').value;
             const place_to = document.getElementById('transfer-new-to').value;
-            const passengers = parseInt(document.getElementById('transfer-new-passengers').value) || 0;
+            const passengers = document.getElementById('transfer-new-passengers').value;
             const received = parseFloat(document.getElementById('transfer-new-received').value) || 0;
             const paid = parseFloat(document.getElementById('transfer-new-paid').value) || 0;
             

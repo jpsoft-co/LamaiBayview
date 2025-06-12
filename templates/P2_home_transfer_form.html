@@ -373,15 +373,15 @@
                                     <td>{{ transfer.pickup_time }}</td>
                                     <td>{{ transfer.booking_no }}</td>                               
                                     <td>{{ transfer.customer_name }} {{ transfer.customer_surname }}</td>
-                                    <td>
-                                        {% if transfer.departure %}
-                                        <span class="badge badge-departure">Departure</span>
-                                        {% elif transfer.arrivals %}
-                                        <span class="badge badge-arrivals">Arrivals</span>
-                                        {% else %}
-                                        <span class="badge">Unknown</span>
-                                        {% endif %}
-                                    </td>
+                                        <td>
+                                            {% if transfer.transfer_type == 'departure' %}
+                                            <span class="badge badge-departure">Departure</span>
+                                            {% elif transfer.transfer_type == 'arrivals' %}
+                                            <span class="badge badge-arrivals">Arrivals</span>
+                                            {% else %}
+                                            <span class="badge">Unknown</span>
+                                            {% endif %}
+                                        </td>
                                     <td>{{ transfer.place_from }}</td>
                                     <td>{{ transfer.place_to }}</td>
                                     <td>{{ transfer.detail }}</td>
@@ -475,12 +475,13 @@
                     <label for="edit_place_from">From:</label>
                     <div class="location-input">
                         <!-- Dropdown for departure (resort to destination) -->
-                        <select class="form-control" id="edit_place_from_departure" name="place_from" style="display: none;">
+                        <select class="form-control" id="edit_place_from_departure" name="place_from" style="display: none;" onchange="handleEditFromChange()">
                             <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
+                            <option value="custom">Enter custom location</option>
                         </select>
                         
                         <!-- Dropdown for arrival (origin to resort) -->
-                        <select class="form-control" id="edit_place_from_arrival" name="place_from" style="display: none;" onchange="updateEditPriceInfo()">
+                        <select class="form-control" id="edit_place_from_arrival" name="place_from" style="display: none;" onchange="handleEditFromChange()">
                             <option value="">Select Origin</option>
                             {% for origin in arrival_origins %}
                             <option value="{{ origin.origin }}" 
@@ -490,17 +491,19 @@
                                 {{ origin.origin }}
                             </option>
                             {% endfor %}
+                            <option value="custom">Enter custom location</option>
                         </select>
                         
-                        <!-- Fallback input field -->
-                        <input type="text" class="form-control" id="edit_place_from_input" name="place_from" style="display: none;">
+                        <!-- ✅ Always visible input field -->
+                        <input type="text" class="form-control" id="edit_place_from_input" name="place_from" 
+                            placeholder="Enter FROM location or select from dropdown">
                     </div>
                 </div>
                 <div class="form-group">
                     <label for="edit_place_to">To:</label>
                     <div class="location-input">
                         <!-- Dropdown for departure (resort to destination) -->
-                        <select class="form-control" id="edit_place_to_departure" name="place_to" style="display: none;" onchange="updateEditPriceInfo()">
+                        <select class="form-control" id="edit_place_to_departure" name="place_to" style="display: none;" onchange="handleEditToChange()">
                             <option value="">Select Destination</option>
                             {% for destination in departure_destinations %}
                             <option value="{{ destination.destination }}" 
@@ -510,15 +513,18 @@
                                 {{ destination.destination }}
                             </option>
                             {% endfor %}
+                            <option value="custom">Enter custom location</option>
                         </select>
                         
                         <!-- Dropdown for arrival (origin to resort) -->
-                        <select class="form-control" id="edit_place_to_arrival" name="place_to" style="display: none;">
+                        <select class="form-control" id="edit_place_to_arrival" name="place_to" style="display: none;" onchange="handleEditToChange()">
                             <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
+                            <option value="custom">Enter custom location</option>
                         </select>
                         
-                        <!-- Fallback input field -->
-                        <input type="text" class="form-control" id="edit_place_to_input" name="place_to" style="display: none;">
+                        <!-- ✅ Always visible input field -->
+                        <input type="text" class="form-control" id="edit_place_to_input" name="place_to" 
+                            placeholder="Enter TO location or select from dropdown">
                     </div>
                 </div>
             </div>
@@ -535,12 +541,12 @@
             
             <div class="form-group">
                 <label for="edit_persons">Person:</label>
-                <input type="number" id="edit_persons" name="persons" min="1" required onchange="calculateEditTotal()">
+                <input type="text" id="edit_persons" name="persons" min="1" step="1" placeholder="Enter number of passengers">
             </div>
             
             <div class="form-group">
-                <label for="edit_price">Price per Person:</label>
-                <input type="number" id="edit_price" name="price" min="0" required onchange="calculateEditTotal()">
+                <label for="edit_price">Price:</label>
+                <input type="number" id="edit_price" name="price" min="0" required>
             </div>
 
             <div class="form-group">

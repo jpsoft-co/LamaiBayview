@@ -1,4 +1,64 @@
 // P2_scripts.js - Enhanced version with discount support
+// ✅ Global variables to track current mode
+let fromInputMode = 'dropdown'; // 'dropdown' or 'custom'
+let toInputMode = 'dropdown';   // 'dropdown' or 'custom'
+
+// ✅ Toggle Functions
+function toggleFromInput(mode) {
+    fromInputMode = mode;
+    const dropdownContainer = document.getElementById('from_dropdown_container');
+    const customInput = document.getElementById('place_from_input');
+    const dropdownBtn = document.getElementById('from_dropdown_btn');
+    const customBtn = document.getElementById('from_custom_btn');
+    
+    if (mode === 'dropdown') {
+        dropdownContainer.style.display = 'block';
+        customInput.style.display = 'none';
+        dropdownBtn.classList.add('active');
+        customBtn.classList.remove('active');
+        // Clear custom input when switching back to dropdown
+        customInput.value = '';
+        // Trigger price update
+        updatePriceInfo();
+    } else {
+        dropdownContainer.style.display = 'none';
+        customInput.style.display = 'block';
+        dropdownBtn.classList.remove('active');
+        customBtn.classList.add('active');
+        customInput.focus();
+        // Clear price info when switching to custom
+        clearPriceInfo();
+    }
+}
+
+function toggleToInput(mode) {
+    toInputMode = mode;
+    const dropdownContainer = document.getElementById('to_dropdown_container');
+    const customInput = document.getElementById('place_to_input');
+    const dropdownBtn = document.getElementById('to_dropdown_btn');
+    const customBtn = document.getElementById('to_custom_btn');
+    
+    if (mode === 'dropdown') {
+        dropdownContainer.style.display = 'block';
+        customInput.style.display = 'none';
+        dropdownBtn.classList.add('active');
+        customBtn.classList.remove('active');
+        // Clear custom input when switching back to dropdown
+        customInput.value = '';
+        // Trigger price update
+        updatePriceInfo();
+    } else {
+        dropdownContainer.style.display = 'none';
+        customInput.style.display = 'block';
+        dropdownBtn.classList.remove('active');
+        customBtn.classList.add('active');
+        customInput.focus();
+        // Clear price info when switching to custom
+        clearPriceInfo();
+    }
+}
+
+
 document.addEventListener('DOMContentLoaded', function() {
     // Set current date as travel date
     const today = new Date().toISOString().split('T')[0];
@@ -13,15 +73,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize discount validation
     initializeDiscountValidation();
 
-    // Calculate total when price or persons change
+    // Calculate total when price or discount change (เอา persons listener ออก)
     const priceInput = document.getElementById('price');
-    const personsInput = document.getElementById('persons');
     const discountInput = document.getElementById('discount');
     const receivedInput = document.getElementById('received');
     
-    if (priceInput && personsInput && receivedInput) {
+    if (priceInput && receivedInput) {
         priceInput.addEventListener('input', calculateTotal);
-        personsInput.addEventListener('input', calculateTotal);
         if (discountInput) {
             discountInput.addEventListener('input', calculateTotal);
         }
@@ -38,25 +96,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Show loading overlay if it exists
-            const loadingOverlay = document.getElementById('loadingOverlay');
-            if (loadingOverlay) {
-                loadingOverlay.style.display = 'flex';
-            }
-            
-            // Get the correct place_from and place_to values based on transfer type
-            const transferType = document.querySelector('input[name="transferType"]:checked').value;
+            // Get correct place_from and place_to values
             let placeFrom, placeTo;
             
-            if (transferType === 'departure') {
-                placeFrom = document.getElementById('place_from_departure').value;
-                placeTo = document.getElementById('place_to_departure').value;
+            if (fromInputMode === 'custom') {
+                placeFrom = document.getElementById('place_from_input').value;
             } else {
-                placeFrom = document.getElementById('place_from_arrival').value;
-                placeTo = document.getElementById('place_to_arrival').value;
+                const transferType = document.querySelector('input[name="transferType"]:checked').value;
+                if (transferType === 'departure') {
+                    placeFrom = document.getElementById('place_from_departure').value;
+                } else {
+                    placeFrom = document.getElementById('place_from_arrival').value;
+                }
             }
             
-            // Create form data object
+            if (toInputMode === 'custom') {
+                placeTo = document.getElementById('place_to_input').value;
+            } else {
+                const transferType = document.querySelector('input[name="transferType"]:checked').value;
+                if (transferType === 'departure') {
+                    placeTo = document.getElementById('place_to_departure').value;
+                } else {
+                    placeTo = document.getElementById('place_to_arrival').value;
+                }
+            }
+            
+            // Create form data
             const formData = new FormData(form);
             
             // Override place_from and place_to with correct values
@@ -145,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add event listener for persons field in edit modal
-    const editPersonsInput = document.getElementById('edit_persons');
+
     const editDiscountInput = document.getElementById('edit_discount');
     const editPriceInput = document.getElementById('edit_price');
     
@@ -158,6 +223,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (editPriceInput) {
         editPriceInput.addEventListener('input', calculateEditTotal);
     }
+
+    // ✅ เพิ่ม event listener สำหรับ price field
+    if (priceInput) {
+        priceInput.addEventListener('input', calculateTotal);
+    }
+    
+    // ✅ เพิ่ม event listener สำหรับ edit price field
+    if (editPriceInput) {
+        editPriceInput.addEventListener('input', calculateEditTotal);
+    }
+
 });
 
 // ===============================================
@@ -323,7 +399,7 @@ function initializeDiscountValidation() {
 function updateTransferOptions() {
     const transferType = document.querySelector('input[name="transferType"]:checked')?.value || 'departure';
     
-    // Get all dropdown elements
+    // Get all elements
     const fromDeparture = document.getElementById('place_from_departure');
     const fromArrival = document.getElementById('place_from_arrival');
     const toDeparture = document.getElementById('place_to_departure');
@@ -335,70 +411,102 @@ function updateTransferOptions() {
     if (toDeparture) toDeparture.style.display = 'none';
     if (toArrival) toArrival.style.display = 'none';
     
-    // Reset form fields
-    const priceField = document.getElementById('price');
-    const receivedField = document.getElementById('received');
-    const paidField = document.getElementById('paid');
+    // ✅ Clear ฟิลด์เมื่อเปลี่ยน transfer type
+    clearFormFields();
     const priceInfo = document.getElementById('priceInfo');
-    
-    if (priceField) priceField.value = '';
-    if (receivedField) receivedField.value = '';
-    if (paidField) paidField.value = '';
     if (priceInfo) priceInfo.style.display = 'none';
     
-    // Set hidden fields
-    const departureField = document.getElementById('departure');
-    const arrivalsField = document.getElementById('arrivals');
-    
+    // Show appropriate dropdowns based on transfer type
     if (transferType === 'departure') {
-        // Show departure dropdowns
         if (fromDeparture) fromDeparture.style.display = 'block';
-        if (toDeparture) toDeparture.style.display = 'block';
-        
-        // Set hidden fields
-        if (departureField) departureField.value = 'yes';
-        if (arrivalsField) arrivalsField.value = '';
-        
-        // Reset departure destination selection
         if (toDeparture) {
-            toDeparture.selectedIndex = 0;
+            toDeparture.style.display = 'block';
+            toDeparture.selectedIndex = 0; // Reset to first option
         }
     } else {
-        // Show arrival dropdowns
-        if (fromArrival) fromArrival.style.display = 'block';
-        if (toArrival) toArrival.style.display = 'block';
-        
-        // Set hidden fields
-        if (departureField) departureField.value = '';
-        if (arrivalsField) arrivalsField.value = 'yes';
-        
-        // Reset arrival origin selection
         if (fromArrival) {
-            fromArrival.selectedIndex = 0;
+            fromArrival.style.display = 'block';
+            fromArrival.selectedIndex = 0; // Reset to first option
         }
+        if (toArrival) toArrival.style.display = 'block';
     }
+    
+    // Reset toggle buttons to dropdown mode
+    resetToggleButtons();
+    
+    // ✅ ไม่ต้อง setTimeout แล้ว เพราะจะ clear ฟิลด์แล้ว
+}
+
+// ✅ Reset toggle buttons to dropdown mode
+function resetToggleButtons() {
+    // Reset FROM toggle
+    fromInputMode = 'dropdown';
+    const fromDropdownContainer = document.getElementById('from_dropdown_container');
+    const fromCustomInput = document.getElementById('place_from_input');
+    const fromDropdownBtn = document.getElementById('from_dropdown_btn');
+    const fromCustomBtn = document.getElementById('from_custom_btn');
+    
+    if (fromDropdownContainer) fromDropdownContainer.style.display = 'block';
+    if (fromCustomInput) {
+        fromCustomInput.style.display = 'none';
+        fromCustomInput.value = '';
+    }
+    if (fromDropdownBtn) fromDropdownBtn.classList.add('active');
+    if (fromCustomBtn) fromCustomBtn.classList.remove('active');
+    
+    // Reset TO toggle
+    toInputMode = 'dropdown';
+    const toDropdownContainer = document.getElementById('to_dropdown_container');
+    const toCustomInput = document.getElementById('place_to_input');
+    const toDropdownBtn = document.getElementById('to_dropdown_btn');
+    const toCustomBtn = document.getElementById('to_custom_btn');
+    
+    if (toDropdownContainer) toDropdownContainer.style.display = 'block';
+    if (toCustomInput) {
+        toCustomInput.style.display = 'none';
+        toCustomInput.value = '';
+    }
+    if (toDropdownBtn) toDropdownBtn.classList.add('active');
+    if (toCustomBtn) toCustomBtn.classList.remove('active');
 }
 
 // Update price information when route is selected
 function updatePriceInfo() {
+    // Skip if in custom input mode
+    if (fromInputMode === 'custom' || toInputMode === 'custom') {
+        clearPriceInfo();
+        return;
+    }
+    
     const transferType = document.querySelector('input[name="transferType"]:checked')?.value || 'departure';
-    let selectedOption;
+    let selectedOption = null;
     
     if (transferType === 'departure') {
         const toDeparture = document.getElementById('place_to_departure');
-        selectedOption = toDeparture ? toDeparture.selectedOptions[0] : null;
+        if (toDeparture && toDeparture.style.display !== 'none') {
+            selectedOption = toDeparture.selectedOptions[0];
+        }
     } else {
         const fromArrival = document.getElementById('place_from_arrival');
-        selectedOption = fromArrival ? fromArrival.selectedOptions[0] : null;
+        if (fromArrival && fromArrival.style.display !== 'none') {
+            selectedOption = fromArrival.selectedOptions[0];
+        }
     }
     
     if (selectedOption && selectedOption.value && selectedOption.value !== '') {
         const passengers = selectedOption.getAttribute('data-passengers');
         const price = selectedOption.getAttribute('data-price');
-        const paid = selectedOption.getAttribute('data-paid');
         
-        // Update form fields
+        // ✅ Update form fields - อัปเดตทุกครั้งที่เลือก dropdown ใหม่
         const priceField = document.getElementById('price');
+        const personsField = document.getElementById('persons');
+        
+        // ✅ ลบเงื่อนไข !personsField.value ออก - อัปเดตทุกครั้ง
+        if (personsField) {
+            personsField.value = passengers;
+        }
+        
+        // ✅ ลบเงื่อนไข !priceField.value ออก - อัปเดตทุกครั้ง
         if (priceField) {
             priceField.value = price;
         }
@@ -412,35 +520,36 @@ function updatePriceInfo() {
         if (routePrice) routePrice.textContent = price;
         if (priceInfo) priceInfo.style.display = 'block';
         
-        // Calculate total if persons is already filled
+        // Calculate total
         calculateTotal();
     } else {
-        // Hide price info if no valid selection
-        const priceInfo = document.getElementById('priceInfo');
-        const priceField = document.getElementById('price');
-        const receivedField = document.getElementById('received');
-        
-        if (priceInfo) priceInfo.style.display = 'none';
-        if (priceField) priceField.value = '';
-        if (receivedField) receivedField.value = '';
+        clearPriceInfo();
     }
 }
 
-// 🆕 Enhanced Calculate total amount with discount support
+function clearPriceInfo() {
+    const priceInfo = document.getElementById('priceInfo');
+    const receivedField = document.getElementById('received');
+    
+    if (priceInfo) priceInfo.style.display = 'none';
+    if (receivedField) receivedField.value = '';
+}
+
+
+// แก้ไขฟังก์ชัน calculateTotal() - ไม่คูณจำนวนคน แค่ใช้ราคาต่อคนโดยตรง
 function calculateTotal() {
     const priceField = document.getElementById('price');
-    const personsField = document.getElementById('persons');
     const discountField = document.getElementById('discount');
     const receivedField = document.getElementById('received');
     
-    if (!priceField || !personsField || !receivedField) return;
+    if (!priceField || !receivedField) return;
     
     const price = parseFloat(priceField.value) || 0;
-    const persons = parseInt(personsField.value) || 0;
     const discountValue = discountField ? discountField.value : '';
     
-    if (price > 0 && persons > 0) {
-        const subtotal = price * persons;
+    if (price > 0) {
+        // ✅ ใช้ราคาต่อคนโดยตรง ไม่คูณจำนวนคน เพราะ persons เป็น text
+        const subtotal = price;
         
         // คำนวณส่วนลด
         const discountResult = calculateDiscount(discountValue, subtotal);
@@ -460,7 +569,7 @@ function calculateTotal() {
             }
         }
         
-        console.log(`Transfer Total: ${price} × ${persons} - ${discountResult.discountAmount} = ${discountResult.finalTotal}`);
+        console.log(`Transfer Total: ${price} - ${discountResult.discountAmount} = ${discountResult.finalTotal}`);
     } else {
         receivedField.value = '';
     }
@@ -471,21 +580,31 @@ function validateTransferForm() {
     const transferType = document.querySelector('input[name="transferType"]:checked')?.value;
     
     if (transferType === 'departure') {
-        const destination = document.getElementById('place_to_departure')?.value;
-        if (!destination || destination === '') {
-            showAlert('Please select a destination for departure transfer.', 'warning');
+        // Get destination from either dropdown or input
+        const toDropdown = document.getElementById('place_to_departure');
+        const toInput = document.getElementById('place_to_input');
+        const destination = (toInput && toInput.style.display !== 'none') ? 
+                           toInput.value : toDropdown.value;
+        
+        if (!destination || destination === '' || destination === 'custom') {
+            showAlert('Please select or enter a destination for departure transfer.', 'warning');
             return false;
         }
-    } else {
-        const origin = document.getElementById('place_from_arrival')?.value;
-        if (!origin || origin === '') {
-            showAlert('Please select an origin for arrival transfer.', 'warning');
+    } else if (transferType === 'arrivals') {
+        // Get origin from either dropdown or input  
+        const fromDropdown = document.getElementById('place_from_arrival');
+        const fromInput = document.getElementById('place_from_input');
+        const origin = (fromInput && fromInput.style.display !== 'none') ? 
+                       fromInput.value : fromDropdown.value;
+        
+        if (!origin || origin === '' || origin === 'custom') {
+            showAlert('Please select or enter an origin for arrival transfer.', 'warning');
             return false;
         }
     }
     
     // Validate required fields
-    const requiredFields = ['name', 'surname', 'time', 'persons', 'staffName', 'status'];
+    const requiredFields = ['name', 'surname', 'time', 'staffName', 'status'];
     for (let fieldName of requiredFields) {
         const field = document.getElementById(fieldName);
         if (field && (!field.value || field.value.trim() === '')) {
@@ -493,6 +612,22 @@ function validateTransferForm() {
             field.focus();
             return false;
         }
+    }
+    
+    // ✅ ตรวจสอบ persons field (text)
+    const personsField = document.getElementById('persons');
+    if (personsField && (!personsField.value || personsField.value.trim() === '')) {
+        showAlert('Please enter passenger information (e.g. 2 Adults, 1 Adult + 1 Child).', 'warning');
+        personsField.focus();
+        return false;
+    }
+    
+    // ✅ ตรวจสอบราคา
+    const priceField = document.getElementById('price');
+    if (priceField && (!priceField.value || parseFloat(priceField.value) <= 0)) {
+        showAlert('Please enter a valid price.', 'warning');
+        priceField.focus();
+        return false;
     }
     
     return true;
@@ -768,43 +903,74 @@ function updateEditPriceInfo() {
         selectedOption = fromArrival ? fromArrival.selectedOptions[0] : null;
     }
     
-    if (selectedOption && selectedOption.value && selectedOption.value !== '') {
+    if (selectedOption && selectedOption.value && selectedOption.value !== '' && selectedOption.value !== 'custom') {
+        const passengers = selectedOption.getAttribute('data-passengers');
         const price = selectedOption.getAttribute('data-price');
         
-        // Update form fields
         const priceField = document.getElementById('edit_price');
+        const personsField = document.getElementById('edit_persons');
+        
+        // ✅ อัปเดตทุกครั้งที่เลือก dropdown ใหม่
+        if (personsField) {
+            personsField.value = passengers;
+        }
         
         if (priceField) {
             priceField.value = price;
         }
         
-        // Calculate total if persons is already filled
+        // Calculate total
         calculateEditTotal();
     } else {
-        // Clear price info if no valid selection
+        // Clear fields when no valid selection
         const priceField = document.getElementById('edit_price');
+        const personsField = document.getElementById('edit_persons');
         const receivedField = document.getElementById('edit_received');
         
+        if (personsField) personsField.value = '';
         if (priceField) priceField.value = '';
         if (receivedField) receivedField.value = '';
     }
 }
 
+// ✅ ฟังก์ชันสำหรับ clear ฟิลด์เมื่อไม่มีการเลือก
+function clearFormFields() {
+    const priceField = document.getElementById('price');
+    const personsField = document.getElementById('persons');
+    const receivedField = document.getElementById('received');
+    
+    if (priceField) priceField.value = '';
+    if (personsField) personsField.value = '';
+    if (receivedField) receivedField.value = '';
+}
+
+// ✅ แก้ไข clearPriceInfo ให้ clear ฟิลด์ด้วย
+function clearPriceInfo() {
+    const priceInfo = document.getElementById('priceInfo');
+    const receivedField = document.getElementById('received');
+    
+    if (priceInfo) priceInfo.style.display = 'none';
+    if (receivedField) receivedField.value = '';
+    
+    // ✅ เมื่อไม่มีข้อมูล route ให้ clear ฟิลด์ทั้งหมด
+    clearFormFields();
+}
+
+
 // 🆕 Enhanced Calculate total amount for edit modal with discount support
 function calculateEditTotal() {
     const priceField = document.getElementById('edit_price');
-    const personsField = document.getElementById('edit_persons');
     const discountField = document.getElementById('edit_discount');
     const receivedField = document.getElementById('edit_received');
     
-    if (!priceField || !personsField || !receivedField) return;
+    if (!priceField || !receivedField) return;
     
     const price = parseFloat(priceField.value) || 0;
-    const persons = parseInt(personsField.value) || 0;
     const discountValue = discountField ? discountField.value : '';
     
-    if (price > 0 && persons > 0) {
-        const subtotal = price * persons;
+    if (price > 0) {
+        // ✅ ใช้ราคาต่อคนโดยตรง ไม่คูณจำนวนคน เพราะ persons เป็น text
+        const subtotal = price;
         
         // คำนวณส่วนลด
         const discountResult = calculateDiscount(discountValue, subtotal);
@@ -824,7 +990,7 @@ function calculateEditTotal() {
             }
         }
         
-        console.log(`Edit Transfer Total: ${price} × ${persons} - ${discountResult.discountAmount} = ${discountResult.finalTotal}`);
+        console.log(`Edit Transfer Total: ${price} - ${discountResult.discountAmount} = ${discountResult.finalTotal}`);
     } else {
         receivedField.value = '';
     }
@@ -878,8 +1044,8 @@ function editTransfer() {
                 document.getElementById('edit_surname').value = booking.customer_surname || '';
             }
             
-            // ตั้งค่าประเภทการเดินทาง และอัพเดท dropdown
-            if (booking.departure === 'yes') {
+            // เปลี่ยนการตรวจสอบ transfer_type แทน departure/arrivals
+            if (booking.transfer_type === 'departure') {
                 const deptRadio = document.getElementById('edit_transferType_departure');
                 if (deptRadio) {
                     deptRadio.checked = true;
@@ -906,7 +1072,7 @@ function editTransfer() {
                         }
                     }, 100);
                 }
-            } else if (booking.arrivals === 'yes') {
+            } else if (booking.transfer_type === 'arrivals') {
                 const arrRadio = document.getElementById('edit_transferType_arrivals');
                 if (arrRadio) {
                     arrRadio.checked = true;
@@ -947,7 +1113,8 @@ function editTransfer() {
             
             // ข้อมูลจำนวนและราคา
             if (document.getElementById('edit_persons')) {
-                document.getElementById('edit_persons').value = booking.quantity || '1';
+                // ใส่ข้อมูล passengers จาก database ลงใน persons field
+                document.getElementById('edit_persons').value = booking.quantity || '';
             }
             
             if (document.getElementById('edit_price')) {
@@ -1034,11 +1201,11 @@ function saveTransfer() {
     // Get correct place_from and place_to based on transfer type and current display
     const transferType = document.querySelector('input[name="edit_transferType"]:checked')?.value;
     
-    // ตั้งค่า departure และ arrivals fields
+    // เพิ่มการส่ง transfer_type แทน
+    formData.set('edit_transferType', transferType);
+    
+    // ตั้งค่า place_from และ place_to
     if (transferType === 'departure') {
-        formData.set('departure', 'yes');
-        formData.set('arrivals', '');
-        
         const toDeparture = document.getElementById('edit_place_to_departure');
         const toInput = document.getElementById('edit_place_to_input');
         
@@ -1048,9 +1215,6 @@ function saveTransfer() {
             formData.set('place_to', toInput.value);
         }
     } else {
-        formData.set('departure', '');
-        formData.set('arrivals', 'yes');
-        
         const fromArrival = document.getElementById('edit_place_from_arrival');
         const fromInput = document.getElementById('edit_place_from_input');
         
@@ -1082,6 +1246,7 @@ function saveTransfer() {
         console.error('Error:', error);
     });
 }
+
 
 // Function to generate and download Excel form
 function printToExcel() {
@@ -1347,3 +1512,89 @@ window.onclick = function(event) {
        closeExportModal();
    }
 };
+
+// ✅ Functions สำหรับ Main Form
+function handleFromChange() {
+    const transferType = document.querySelector('input[name="transferType"]:checked')?.value || 'departure';
+    let selectedDropdown, customInput;
+    
+    if (transferType === 'departure') {
+        selectedDropdown = document.getElementById('place_from_departure');
+        customInput = document.getElementById('place_from_input');
+    } else {
+        selectedDropdown = document.getElementById('place_from_arrival');
+        customInput = document.getElementById('place_from_input');
+    }
+    
+    if (selectedDropdown && customInput) {
+        if (selectedDropdown.value === 'custom') {
+            customInput.style.display = 'block';
+            customInput.focus();
+            selectedDropdown.style.display = 'none';
+        } else {
+            customInput.style.display = 'none';
+            updatePriceInfo();
+        }
+    }
+}
+
+function handleToChange() {
+    const transferType = document.querySelector('input[name="transferType"]:checked')?.value || 'departure';
+    let selectedDropdown, customInput;
+    
+    if (transferType === 'departure') {
+        selectedDropdown = document.getElementById('place_to_departure');
+        customInput = document.getElementById('place_to_input');
+    } else {
+        selectedDropdown = document.getElementById('place_to_arrival');
+        customInput = document.getElementById('place_to_input');
+    }
+    
+    if (selectedDropdown && customInput) {
+        if (selectedDropdown.value === 'custom') {
+            customInput.style.display = 'block';
+            customInput.focus();
+            selectedDropdown.style.display = 'none';
+        } else {
+            customInput.style.display = 'none';
+            updatePriceInfo();
+        }
+    }
+}
+
+// ✅ Functions สำหรับ Edit Modal
+function handleEditFromChange() {
+    const transferType = document.querySelector('input[name="edit_transferType"]:checked')?.value || 'departure';
+    let selectedDropdown, customInput;
+    
+    if (transferType === 'departure') {
+        selectedDropdown = document.getElementById('edit_place_from_departure');
+    } else {
+        selectedDropdown = document.getElementById('edit_place_from_arrival');
+    }
+    
+    customInput = document.getElementById('edit_place_from_input');
+    
+    if (selectedDropdown && customInput && selectedDropdown.value !== 'custom') {
+        customInput.value = selectedDropdown.value;
+        updateEditPriceInfo();
+    }
+}
+
+function handleEditToChange() {
+    const transferType = document.querySelector('input[name="edit_transferType"]:checked')?.value || 'departure';
+    let selectedDropdown, customInput;
+    
+    if (transferType === 'departure') {
+        selectedDropdown = document.getElementById('edit_place_to_departure');
+    } else {
+        selectedDropdown = document.getElementById('edit_place_to_arrival');
+    }
+    
+    customInput = document.getElementById('edit_place_to_input');
+    
+    if (selectedDropdown && customInput && selectedDropdown.value !== 'custom') {
+        customInput.value = selectedDropdown.value;
+        updateEditPriceInfo();
+    }
+}

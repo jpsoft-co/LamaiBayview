@@ -53,7 +53,15 @@ def login_required(f):
 #         )
 
         
-
+def get_db_connection():
+    return psycopg2.connect(
+        host="dpg-d0qsdf95pdvs73atfls0-a.oregon-postgres.render.com",  # ✅ host ต้องไม่มี protocol
+        port="5432",
+        dbname="booking_system_mmdr",
+        user="booking_user",
+        password="1YtEzFr8UkRTNzzwYtKQe8jaaremuxyA",
+        sslmode="require"  # ✅ ใช้ sslmode=required กับ Render
+    )
 
 
 def load_data_from_file(filename):
@@ -1937,8 +1945,7 @@ def submit_transfer_booking():
         customer_surname = request.form.get('surname', '')
         place_from = request.form.get('place_from', '')
         place_to = request.form.get('place_to', '')
-        departure = request.form.get('departure', '')
-        arrivals = request.form.get('arrivals', '')
+        transfer_type = request.form.get('transferType', '')
         detail = request.form.get('detail', '')
         pickup_time = request.form.get('time', '')
         quantity = request.form.get('persons', '0')
@@ -1960,16 +1967,16 @@ def submit_transfer_booking():
         INSERT INTO transfer_rental (
             travel_date, pickup_time, booking_date, booking_no, 
             customer_name, customer_surname, place_from, place_to, 
-            departure, arrivals, detail, quantity, received,
+            transfer_type, detail, quantity, received,
             payment_status, staff_name, driver_name, price, payment_method, remark, discount
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
         # 17 values ตรงกับ 17 placeholders
         values = (
             travel_date, pickup_time, booking_date, booking_no,
             customer_name, customer_surname, place_from, place_to,
-            departure, arrivals, detail, quantity, received,
+            transfer_type, detail, quantity, received,
             payment_status, staff_name, driver_name, price, payment_method, remark, discount
         )
         
@@ -2194,26 +2201,22 @@ def cancel_transfer_bookings():
 @login_required
 def get_transfer_booking_details():
     try:
-        # Get booking number
         booking_no = request.form.get('booking_no')
         
         if not booking_no:
             return jsonify({"success": False, "message": "No booking selected"})
         
-        # Connect to database
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Get booking details with paid amount from transfer_tabel
+        # เปลี่ยน JOIN condition
         query = """
         SELECT 
             tr.*,
             COALESCE(tt.paid, 0) as paid_from_table
         FROM transfer_rental tr
-        LEFT JOIN transfer_tabel tt ON (
-            (tr.departure = 'yes' AND tr.place_from = tt.place_from AND tr.place_to = tt.place_to) OR
-            (tr.arrivals = 'yes' AND tr.place_from = tt.place_from AND tr.place_to = tt.place_to)
-        )
+        LEFT JOIN transfer_tabel tt ON tr.place_from = tt.place_from 
+                                    AND tr.place_to = tt.place_to
         WHERE tr.booking_no = %s
         """
         cursor.execute(query, (booking_no,))
@@ -2261,8 +2264,7 @@ def update_transfer_booking():
         customer_surname = request.form.get('surname', '')
         place_from = request.form.get('place_from', '')
         place_to = request.form.get('place_to', '')
-        departure = request.form.get('departure', '')
-        arrivals = request.form.get('arrivals', '')
+        transfer_type = request.form.get('edit_transferType', '')  # เปลี่ยนจาก departure/arrivals
         detail = request.form.get('detail', '')
         pickup_time = request.form.get('time', '')
         travel_date = request.form.get('travel_date', '')
@@ -2272,9 +2274,9 @@ def update_transfer_booking():
         staff_name = request.form.get('staffName', '')
         driver_name = request.form.get('driverName', '')
         price = request.form.get('price', '0')
-        payment_method = request.form.get('paymentmethod', '') # อย่าลืมใส่ variable = paymentmethod ตัวนี้ใน tour_rental และ tour_transfer
-        remark = request.form.get('remark', '') # อย่าลืมใส่ variable = remark ตัวนี้ใน tour_rental และ tour_transfer
-        discount = request.form.get('discounr', '')
+        payment_method = request.form.get('paymentmethod', '')
+        remark = request.form.get('remark', '')
+        discount = request.form.get('discount', '')  # แก้ไข typo จาก 'discounr'
         
         if not booking_no:
             return jsonify({"success": False, "message": "Booking number is required"})
@@ -2283,7 +2285,7 @@ def update_transfer_booking():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Update booking - 15 fields + WHERE booking_no
+        # อัพเดท query ใหม่ - เปลี่ยนจาก departure, arrivals เป็น transfer_type
         query = """
         UPDATE transfer_rental SET
             travel_date = %s,
@@ -2292,8 +2294,7 @@ def update_transfer_booking():
             customer_surname = %s,
             place_from = %s,
             place_to = %s,
-            departure = %s,
-            arrivals = %s,
+            transfer_type = %s,
             detail = %s,
             quantity = %s,
             received = %s,
@@ -2307,10 +2308,9 @@ def update_transfer_booking():
         WHERE booking_no = %s
         """
         
-        # 15 values + booking_no = 16 parameters total
         values = (
             travel_date, pickup_time, customer_name, customer_surname,
-            place_from, place_to, departure, arrivals, detail, 
+            place_from, place_to, transfer_type, detail, 
             quantity, received, payment_status, staff_name, 
             driver_name, price, payment_method, remark, discount, booking_no
         )
@@ -2330,7 +2330,8 @@ def update_transfer_booking():
         
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
-
+    
+    
 # ---- EXCEL FORM GENERATION FUNCTIONALITY ----
 @app.route("/generate_excel_form_transfer", methods=["POST"])
 def generate_excel_form_transfer():
@@ -2360,8 +2361,7 @@ def generate_excel_form_transfer():
             CONCAT(customer_name, ' ', customer_surname) AS full_name,
             place_from,
             place_to,
-            departure,
-            arrivals,
+            transfer_type,  # เปลี่ยนจาก departure, arrivals
             detail,
             quantity,
             received,
@@ -2518,18 +2518,15 @@ def export_transfers():
             tr.quantity, 
             tr.received,
             tr.payment_status,
-            tr.departure,
-            tr.arrivals,
+            tr.transfer_type,  # เปลี่ยนจาก departure, arrivals
             tr.price,
             tr.payment_method,
             tr.remark,
             tr.discount,
             COALESCE(tt.paid, 0) as paid
         FROM transfer_rental tr
-        LEFT JOIN transfer_tabel tt ON (
-            (tr.departure = 'yes' AND tr.place_from = tt.place_from AND tr.place_to = tt.place_to) OR
-            (tr.arrivals = 'yes' AND tr.place_from = tt.place_from AND tr.place_to = tt.place_to)
-        )
+        LEFT JOIN transfer_tabel tt ON tr.place_from = tt.place_from 
+                                    AND tr.place_to = tt.place_to
         WHERE 1=1
         """
         
@@ -2586,9 +2583,9 @@ def export_transfers():
         
         # Apply transfer type filter
         if transfer_type == 'departure':
-            query += " AND tr.departure = 'yes'"
+            query += " AND tr.transfer_type = 'departure'"
         elif transfer_type == 'arrivals':
-            query += " AND tr.arrivals = 'yes'"
+            query += " AND tr.transfer_type = 'arrivals'"
         # 'all' = no additional filter
         
         # Apply payment status filter
@@ -2651,9 +2648,7 @@ def export_transfers():
                 booking_date = booking_date.strftime("%d/%m/%Y")
             
             # Calculate price per person
-            price_per_person = 0
-            if transfer['quantity'] and transfer['quantity'] > 0:
-                price_per_person = transfer['received'] / transfer['quantity']
+            price_per_person = transfer['price'] if transfer['price'] else 0
             
             # Calculate amount (difference between received and paid)
             paid_amount = transfer['paid'] if transfer['paid'] else 0
@@ -2664,9 +2659,9 @@ def export_transfers():
             
             # Transfer type display
             transfer_type_text = "Unknown"
-            if transfer['departure'] == 'yes':
+            if transfer['transfer_type'] == 'departure':
                 transfer_type_text = "Departure"
-            elif transfer['arrivals'] == 'yes':
+            elif transfer['transfer_type'] == 'arrivals':
                 transfer_type_text = "Arrivals"
             
             # Add row data
@@ -2681,7 +2676,7 @@ def export_transfers():
                 transfer['detail'] or '',        # Detail
                 transfer['staff_name'],          # Staff Name
                 transfer['quantity'],            # Person
-                round(price_per_person, 2),      # Price/Person
+                price_per_person,      # Price/Person
                 transfer['received'],            # Received
                 paid_amount,                     # Paid
                 round(amount, 2),                 # Amount (Received - Paid)
