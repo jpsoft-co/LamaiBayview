@@ -13,6 +13,9 @@ from psycopg2.extras import RealDictCursor
 import uuid
 import openpyxl
 import tempfile
+import win32com.client as win32
+import pythoncom 
+from openpyxl.drawing.image import Image
 
 from functools import wraps
 import secrets
@@ -818,51 +821,77 @@ def update_booking():
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
     
 # ---- EXCEL FORM GENERATION FUNCTIONALITY ----
+def convert_excel_to_pdf(excel_path):
+    """Convert Excel file to PDF using win32com"""
+    
+    # ⚠️ เพิ่มส่วนนี้ - Initialize COM
+    pythoncom.CoInitialize()
+    
+    try:
+        # สร้าง PDF path
+        pdf_path = excel_path.replace(".xlsx", ".pdf")
+        
+        # เปิด Excel application
+        excel_app = None
+        wb = None
+        
+        try:
+            excel_app = win32.gencache.EnsureDispatch('Excel.Application')
+            excel_app.Visible = False  # ไม่ให้ Excel โผล่
+            excel_app.DisplayAlerts = False  # ปิด alerts
+            
+            # เปิด workbook
+            wb = excel_app.Workbooks.Open(excel_path)
+            
+            # Export เป็น PDF (แบบง่าย - รองรับทุก Excel version)
+            wb.ExportAsFixedFormat(0, pdf_path)
+            
+            print(f"PDF created successfully: {pdf_path}")
+
+            return pdf_path
+            
+        finally:
+            # ปิด workbook และ application อย่างปลอดภัย
+            if wb:
+                wb.Close(SaveChanges=False)
+            if excel_app:
+                excel_app.Quit()
+                
+    except Exception as e:
+        print(f"Error converting Excel to PDF: {str(e)}")
+        # ถ้าแปลงไม่ได้ ให้ส่ง Excel file เดิม
+        return excel_path
+    
+    finally:
+        # ⚠️ เพิ่มส่วนนี้ - Uninitialize COM
+        pythoncom.CoUninitialize()
+
 @app.route("/generate_excel_form", methods=["POST"])
 def generate_excel_form():
     try:
-        # รับ booking number จาก request
         booking_no = request.form.get('booking_no')
+        booking_type = request.form.get('booking_type', 'tour')
         
-        # ⚠️ เพิ่มตัวนี้ - รับประเภทจาก form
-        booking_type = request.form.get('booking_type', 'tour')  # default เป็น tour
-        
-        # ตรวจสอบว่ามี booking number หรือไม่
         if not booking_no:
             return jsonify({"success": False, "message": "Booking number not specified"}), 400
         
-        print(f"Processing Excel generation for {booking_type} booking: {booking_no}")  # Debug log
+        print(f"Processing Excel generation for {booking_type} booking: {booking_no}")
         
         # เชื่อมต่อฐานข้อมูล
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # ⚠️ เลือกตารางตามประเภท
         table_name = 'tour_rental' if booking_type == 'tour' else 'motorbike_rental'
         
-        # ดึงข้อมูลการจอง
         query = f"""
         SELECT 
-            booking_no, 
-            booking_date, 
-            travel_date, 
-            pickup_time, 
-            customer_name,
-            customer_surname,
+            booking_no, booking_date, travel_date, pickup_time, 
+            customer_name, customer_surname,
             CONCAT(customer_name, ' ', customer_surname) AS full_name,
-            room, 
-            payment_status, 
-            staff_name, 
-            received,
-            quantity,
-            detail,
-            payment_method,
-            remark,
-            discount
-        FROM 
-            {table_name} 
-        WHERE 
-            booking_no = %s
+            room, payment_status, staff_name, received,
+            quantity, detail, payment_method, remark, discount
+        FROM {table_name} 
+        WHERE booking_no = %s
         """
         cursor.execute(query, (booking_no,))
         booking = cursor.fetchone()
@@ -872,35 +901,59 @@ def generate_excel_form():
             conn.close()
             return jsonify({"success": False, "message": f"Booking number not found: {booking_no}"}), 404
         
-        print(f"Booking data retrieved: {booking}")  # Debug log
-        
         # สร้างไฟล์ Excel
-        try:
-            excel_file = create_excel_form(booking, booking_type)  # ⚠️ ส่ง booking_type ไปด้วย
-            print(f"Excel file created at: {excel_file}")  # Debug log
-            
-            # ปิดการเชื่อมต่อฐานข้อมูล
-            cursor.close()
-            conn.close()
-            
-            # ⚠️ เปลี่ยนชื่อไฟล์ตามประเภท
-            file_prefix = "Tour" if booking_type == 'tour' else "Motorbike"
-            
-            # ส่งไฟล์กลับไปยังผู้ใช้
+        excel_file = create_excel_form(booking, booking_type)
+        
+        # แปลงเป็น PDF
+        pdf_file = convert_excel_to_pdf(excel_file)
+        
+        cursor.close()
+        conn.close()
+        
+        file_prefix = "Tour" if booking_type == 'tour' else "Motorbike"
+
+        print(f"File prefix: {file_prefix}")
+        print(f"Download name: {file_prefix}_Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.pdf")
+        
+        # ตรวจสอบว่าได้ PDF หรือ Excel
+        if pdf_file.endswith('.pdf'):
+            return send_file(
+                pdf_file,
+                as_attachment=False,  # เปิดในเบราว์เซอร์
+                download_name=f"{file_prefix}_Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                mimetype='application/pdf'
+            )
+        else:
+            # ถ้าแปลง PDF ไม่ได้ ส่ง Excel แทน
             return send_file(
                 excel_file,
                 as_attachment=True,
                 download_name=f"{file_prefix}_Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.xlsx",
                 mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-            
-        except Exception as e:
-            print(f"Error creating Excel: {str(e)}")  # Debug log
-            return jsonify({"success": False, "message": f"Failed to create the Excel file: {str(e)}"}), 500
-    
+        
     except Exception as e:
-        print(f"General error: {str(e)}")  # Debug log
+        print(f"General error: {str(e)}")
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
+
+# เพิ่มฟังก์ชันทำความสะอาดไฟล์ชั่วคราว
+def cleanup_temp_files():
+    """ลบไฟล์ชั่วคราวเก่า"""
+    temp_dir = tempfile.gettempdir()
+    current_time = datetime.now()
+    
+    for filename in os.listdir(temp_dir):
+        if filename.endswith(('.xlsx', '.pdf')):
+            file_path = os.path.join(temp_dir, filename)
+            try:
+                # ลบไฟล์ที่เก่ากว่า 1 ชั่วโมง
+                file_time = datetime.fromtimestamp(os.path.getctime(file_path))
+                if (current_time - file_time).seconds > 3600:
+                    os.remove(file_path)
+                    print(f"Cleaned up temp file: {filename}")
+            except Exception as e:
+                print(f"Error cleaning temp file {filename}: {e}")
 
 def create_excel_form(booking, booking_type='tour'):  # ⚠️ เพิ่ม parameter
     """Create Excel form from booking data"""
@@ -1001,6 +1054,44 @@ def create_excel_form(booking, booking_type='tour'):  # ⚠️ เพิ่ม p
     # สร้างไฟล์ชั่วคราว
     temp_dir = tempfile.gettempdir()
     temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}.xlsx")
+
+    logo_path = os.path.join(script_dir, 'static', 'images', 'logoexcel.png')
+    
+    if os.path.exists(logo_path):
+        try:
+            # เพิ่มโลโก้ที่ A1 (หน้าแรก)
+            img1 = Image(logo_path)
+            img1.width = 100   # ปรับขนาดตามต้องการ
+            img1.height = 80
+            img1.anchor = 'B1'
+            sheet.add_image(img1)
+            
+            # เพิ่มโลโก้ที่ A46 (หน้าที่สอง - ถ้ามี)
+            img2 = Image(logo_path)
+            img2.width = 100
+            img2.height = 80
+            img2.anchor = 'B28'
+            sheet.add_image(img2)
+            print(f"Tour/Motorbike logo added successfully")
+        except Exception as e:
+            print(f"Error adding tour/motorbike logo: {str(e)}")
+    
+    # เพิ่มรูปอื่นๆ สำหรับ Tour/Motorbike
+    additional_images = [
+        {'path': os.path.join(script_dir, 'static', 'images', 'signature.png'), 'anchor': 'H25'},
+    ]
+    
+    for img_info in additional_images:
+        if os.path.exists(img_info['path']):
+            try:
+                img = Image(img_info['path'])
+                img.width = 80
+                img.height = 40
+                img.anchor = img_info['anchor']
+                sheet.add_image(img)
+                print(f"Tour/Motorbike additional image added")
+            except Exception as e:
+                print(f"Error adding tour/motorbike image: {str(e)}")
     
     # บันทึก workbook ไปยังไฟล์ชั่วคราว
     workbook.save(temp_file)
@@ -1910,36 +2001,59 @@ def get_transfer_price():
 @login_required
 def submit_transfer_booking():
     try:
-        # Connect to the database to get the latest booking number
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get current year and month (in format YY and MM)
+        # ✅ แก้ไขการสร้าง prefix
         current_date = datetime.now()
-        year_prefix = current_date.strftime("%y")  # 2-digit year (e.g., 25 for 2025)
-        month_prefix = current_date.strftime("%m")  # 2-digit month (e.g., 04 for April)
-        prefix = f"H{year_prefix}{month_prefix}"  # e.g., 2504
+        year_prefix = current_date.strftime("%y")   # 25
+        month_prefix = current_date.strftime("%m")  # 12 (ธันวาคม)
+        prefix = f"H{year_prefix}{month_prefix}"    # H2512
         
-        # Query to find the highest booking number with the current year-month prefix
+        print(f"Current date: {current_date}")  # Debug
+        print(f"Generated prefix: {prefix}")    # Debug
+        
+        # ✅ แก้ไข query หา running number
         query = """
         SELECT booking_no FROM transfer_rental 
         WHERE booking_no LIKE %s 
-        ORDER BY booking_no DESC LIMIT 1
+        ORDER BY CAST(SUBSTRING(booking_no FROM 6) AS INTEGER) DESC 
+        LIMIT 1
         """
         cursor.execute(query, (f"{prefix}%",))
         result = cursor.fetchone()
         
         if result:
-            # If a booking number with this prefix exists, increment the running number
             last_booking_no = result[0]
-            running_number = int(last_booking_no[4:]) + 1
+            print(f"Last booking: {last_booking_no}")  # Debug
+            
+            # ✅ ดึง running number ตัวสุดท้าย
+            try:
+                # ดึงตัวเลขหลัง prefix (ตำแหน่งที่ 5 เป็นต้นไป)
+                running_number = int(last_booking_no[5:]) + 1
+            except (ValueError, IndexError):
+                running_number = 1
         else:
-            # If no booking number with this prefix exists, start at 1
             running_number = 1
         
-        # Format the booking number: YYMMXXXXX (where XXXXX is a 5-digit running number)
-        booking_no = f"{prefix}{running_number:05d}"  # Pad with leading zeros to 5 digits
-
+        print(f"Next running number: {running_number}")  # Debug
+        
+        # ✅ สร้าง booking number ที่ถูกต้อง
+        booking_no = f"{prefix}{running_number:05d}"  # 5 หลัก
+        print(f"Generated booking_no: {booking_no}")   # Debug
+        
+        # ✅ ตรวจสอบว่าไม่ซ้ำ
+        check_query = "SELECT booking_no FROM transfer_rental WHERE booking_no = %s"
+        cursor.execute(check_query, (booking_no,))
+        exists = cursor.fetchone()
+        
+        if exists:
+            # ถ้าซ้ำให้เพิ่ม running number
+            running_number += 1
+            booking_no = f"{prefix}{running_number:05d}"
+            print(f"Conflict detected, new booking_no: {booking_no}")  # Debug
+        
+        # ส่วนที่เหลือเหมือนเดิม...
         # Get form data
         customer_name = request.form.get('name', '')
         customer_surname = request.form.get('surname', '')
@@ -1954,15 +2068,14 @@ def submit_transfer_booking():
         staff_name = request.form.get('staffName', '')
         driver_name = request.form.get('driverName', '')
         price = request.form.get('price', '0')
-        payment_method = request.form.get('paymentmethod', '') # อย่าลืมใส่ variable = paymentmethod ตัวนี้ใน tour_rental และ tour_transfer
-        remark = request.form.get('remark', '') # อย่าลืมใส่ variable = remark ตัวนี้ใน tour_rental และ tour_transfer
+        payment_method = request.form.get('paymentmethod', '')
+        remark = request.form.get('remark', '')
         discount = request.form.get('discount', '')
         
-        # Set booking date to today
         booking_date = date.today().isoformat()
         travel_date = request.form.get('travel_date', date.today().isoformat())
         
-        # Insert data into the database - 17 fields
+        # Insert ข้อมูล
         query = """
         INSERT INTO transfer_rental (
             travel_date, pickup_time, booking_date, booking_no, 
@@ -1972,7 +2085,6 @@ def submit_transfer_booking():
         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
-        # 17 values ตรงกับ 17 placeholders
         values = (
             travel_date, pickup_time, booking_date, booking_no,
             customer_name, customer_surname, place_from, place_to,
@@ -1989,8 +2101,8 @@ def submit_transfer_booking():
         return jsonify({"success": True, "message": "Transfer booking successfully submitted", "booking_no": booking_no})
     
     except Exception as e:
+        print(f"Error in submit_transfer_booking: {str(e)}")  # Debug
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
-
 
 @app.route("/home_transfer_form")
 @login_required
@@ -2333,17 +2445,87 @@ def update_transfer_booking():
     
     
 # ---- EXCEL FORM GENERATION FUNCTIONALITY ----
+def convert_excel_to_pdf_transfer(excel_path):
+    """Convert Excel file to PDF using win32com for Transfer bookings - Enhanced version"""
+    
+    # ⚠️ Initialize COM
+    pythoncom.CoInitialize()
+    
+    try:
+        # สร้าง PDF path และแปลงเป็น absolute path
+        pdf_path = os.path.abspath(excel_path.replace(".xlsx", ".pdf"))
+        excel_path = os.path.abspath(excel_path)
+        
+        # ตรวจสอบสิทธิ์ไฟล์
+        if not os.access(excel_path, os.R_OK):
+            raise PermissionError(f"Cannot read Excel file: {excel_path}")
+        
+        excel_app = None
+        wb = None
+        
+        try:
+            # สร้าง Excel application ใหม่
+            excel_app = win32.gencache.EnsureDispatch('Excel.Application')
+            excel_app.Visible = False
+            excel_app.DisplayAlerts = False
+            excel_app.ScreenUpdating = False  # ⚠️ เพิ่มเพื่อประสิทธิภาพ
+            
+            # เปิด workbook
+            wb = excel_app.Workbooks.Open(excel_path)
+            
+            # Export เป็น PDF
+            wb.ExportAsFixedFormat(0, pdf_path)
+            
+            print(f"Transfer PDF created successfully: {pdf_path}")
+            return pdf_path
+            
+        except Exception as e:
+            print(f"Error in Excel operations: {str(e)}")
+            raise e
+            
+        finally:
+            # ปิด workbook และ application อย่างระมัดระวัง
+            try:
+                if wb:
+                    wb.Close(SaveChanges=False)
+            except:
+                pass
+            
+            try:
+                if excel_app:
+                    excel_app.Quit()
+            except:
+                pass
+            
+            # ⚠️ บังคับปิด Excel process ถ้ายังค้าง
+            try:
+                import subprocess
+                subprocess.call("taskkill /f /im excel.exe", shell=True, 
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except:
+                pass
+                
+    except Exception as e:
+        print(f"Error converting Transfer Excel to PDF: {str(e)}")
+        # ถ้าแปลงไม่ได้ ให้ส่ง Excel file เดิม
+        return excel_path
+    
+    finally:
+        # ⚠️ Uninitialize COM
+        try:
+            pythoncom.CoUninitialize()
+        except:
+            pass
+
 @app.route("/generate_excel_form_transfer", methods=["POST"])
 def generate_excel_form_transfer():
     try:
-        # รับ booking number จาก request
         booking_no = request.form.get('booking_no')
         
-        # ตรวจสอบว่ามี booking number หรือไม่
         if not booking_no:
             return jsonify({"success": False, "message": "Booking not found"}), 400
         
-        print(f"Processing Excel generation for booking: {booking_no}")  # Debug log
+        print(f"Processing Excel generation for transfer booking: {booking_no}")
         
         # เชื่อมต่อฐานข้อมูล
         conn = get_db_connection()
@@ -2352,30 +2534,14 @@ def generate_excel_form_transfer():
         # ดึงข้อมูลการจอง
         query = """
         SELECT 
-            booking_no, 
-            booking_date, 
-            travel_date, 
-            pickup_time, 
-            customer_name,
-            customer_surname,
+            booking_no, booking_date, travel_date, pickup_time, 
+            customer_name, customer_surname,
             CONCAT(customer_name, ' ', customer_surname) AS full_name,
-            place_from,
-            place_to,
-            transfer_type,  # เปลี่ยนจาก departure, arrivals
-            detail,
-            quantity,
-            received,
-            payment_status,
-            staff_name,
-            driver_name,
-            price,
-            payment_method,
-            remark,
-            discount
-        FROM 
-            transfer_rental 
-        WHERE 
-            booking_no = %s
+            place_from, place_to, transfer_type, detail,
+            quantity, received, payment_status, staff_name,
+            driver_name, price, payment_method, remark, discount
+        FROM transfer_rental 
+        WHERE booking_no = %s
         """
         cursor.execute(query, (booking_no,))
         booking = cursor.fetchone()
@@ -2385,50 +2551,74 @@ def generate_excel_form_transfer():
             conn.close()
             return jsonify({"success": False, "message": f"Booking not found: {booking_no}"}), 404
         
-        print(f"Booking data retrieved: {booking}")  # Debug log
+        print(f"Transfer booking data retrieved: {booking}")
         
         # สร้างไฟล์ Excel
-        try:
-            excel_file = create_excel_form_transfer(booking)
-            print(f"Excel file created at: {excel_file}")  # Debug log
-            
-            # ปิดการเชื่อมต่อฐานข้อมูล
-            cursor.close()
-            conn.close()
-            
-            # ส่งไฟล์กลับไปยังผู้ใช้
+        excel_file = create_excel_form_transfer(booking)
+        print(f"Transfer Excel file created at: {excel_file}")
+        
+        # ⚠️ แปลงเป็น PDF เหมือนกับ Tour/Motorbike
+        pdf_file = convert_excel_to_pdf(excel_file)
+        print(f"Transfer PDF file: {pdf_file}")
+        
+        cursor.close()
+        conn.close()
+        
+        # ตรวจสอบว่าได้ PDF หรือ Excel
+        if pdf_file.endswith('.pdf'):
+            return send_file(
+                pdf_file,
+                as_attachment=False,  # เปิดในเบราว์เซอร์
+                download_name=f"Transfer_Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                mimetype='application/pdf'
+            )
+        else:
+            # ถ้าแปลง PDF ไม่ได้ ส่ง Excel แทน
             return send_file(
                 excel_file,
                 as_attachment=True,
-                download_name=f"Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                download_name=f"Transfer_Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.xlsx",
                 mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-            
-        except Exception as e:
-            print(f"Error creating Excel: {str(e)}")  # Debug log
-            return jsonify({"success": False, "message": f"Failed to create the Excel file: {str(e)}"}), 500
-    
+        
     except Exception as e:
-        print(f"General error: {str(e)}")  # Debug log
+        print(f"General error in transfer form generation: {str(e)}")
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+    
+# ⚠️ ฟังก์ชันทำความสะอาดไฟล์ชั่วคราว (เพิ่มเติม)
+def cleanup_transfer_temp_files():
+    """ลบไฟล์ชั่วคราวของ Transfer เก่า"""
+    temp_dir = tempfile.gettempdir()
+    current_time = datetime.now()
+    
+    for filename in os.listdir(temp_dir):
+        if filename.endswith(('.xlsx', '.pdf')) and 'transfer' in filename.lower():
+            file_path = os.path.join(temp_dir, filename)
+            try:
+                # ลบไฟล์ที่เก่ากว่า 1 ชั่วโมง
+                file_time = datetime.fromtimestamp(os.path.getctime(file_path))
+                if (current_time - file_time).seconds > 3600:
+                    os.remove(file_path)
+                    print(f"Cleaned up transfer temp file: {filename}")
+            except Exception as e:
+                print(f"Error cleaning transfer temp file {filename}: {e}")
 
 def create_excel_form_transfer(booking):
-    """Create Excel form from booking data"""
+    """Create Excel form from transfer booking data with images"""
     # Define template path in static folder
     script_dir = os.path.dirname(os.path.abspath(__file__))
     template_path = os.path.join(script_dir, 'static', 'templates', 'transfer_template.xlsx')
     
     # ตรวจสอบว่าไฟล์ template มีอยู่จริง
     if not os.path.exists(template_path):
-        print(f"Template not found at: {template_path}")  # Debug log
+        print(f"Transfer template not found at: {template_path}")
         
-        # ตรวจสอบโฟลเดอร์
         templates_dir = os.path.join(script_dir, 'static', 'templates')
         if not os.path.exists(templates_dir):
             os.makedirs(templates_dir)
             print(f"Created templates directory: {templates_dir}")
         
-        raise FileNotFoundError(f"Could not find the Excel template file at: {template_path}")
+        raise FileNotFoundError(f"Could not find the Transfer Excel template file at: {template_path}")
     
     # โหลด Excel template
     workbook = openpyxl.load_workbook(template_path)
@@ -2451,7 +2641,6 @@ def create_excel_form_transfer(booking):
         "remark": ["D21", "D48"],
         "payment_method": ["H22", "H49"]
     }
-    
     
     # ใส่ข้อมูลลงในเซลล์ตาม mappings
     for field, cells in cell_mappings.items():
@@ -2483,6 +2672,49 @@ def create_excel_form_transfer(booking):
             for cell in cells:
                 sheet[cell] = value
     
+    # *** เพิ่มส่วนรูปภาพเหมือนกับ Tour/Motorbike ***
+    logo_path = os.path.join(script_dir, 'static', 'images', 'logoexcel.png')
+    
+    if os.path.exists(logo_path):
+        try:
+            # เพิ่มโลโก้ที่ B1 (หน้าแรก)
+            img1 = Image(logo_path)
+            img1.width = 100   # ปรับขนาดตามต้องการ
+            img1.height = 80
+            img1.anchor = 'B1'
+            sheet.add_image(img1)
+            
+            # เพิ่มโลโก้ที่ B28 (หน้าที่สอง)
+            img2 = Image(logo_path)
+            img2.width = 100
+            img2.height = 80
+            img2.anchor = 'B28'
+            sheet.add_image(img2)
+            
+            print(f"Transfer logos added successfully")
+            
+        except Exception as e:
+            print(f"Error adding transfer logos: {str(e)}")
+    else:
+        print(f"Transfer logo file not found at: {logo_path}")
+    
+    # เพิ่มรูปภาพอื่นๆ สำหรับ Transfer
+    additional_images = [
+        {'path': os.path.join(script_dir, 'static', 'images', 'signature.png'), 'anchor': 'H25'},
+        {'path': os.path.join(script_dir, 'static', 'images', 'signature.png'), 'anchor': 'H52'},  # หน้าที่สอง
+    ]
+    
+    for img_info in additional_images:
+        if os.path.exists(img_info['path']):
+            try:
+                img = Image(img_info['path'])
+                img.width = 80
+                img.height = 40
+                img.anchor = img_info['anchor']
+                sheet.add_image(img)
+                print(f"Transfer additional image added")
+            except Exception as e:
+                print(f"Error adding transfer image: {str(e)}")
     
     # สร้างไฟล์ชั่วคราว
     temp_dir = tempfile.gettempdir()

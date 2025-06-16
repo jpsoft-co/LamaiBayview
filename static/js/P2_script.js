@@ -1264,60 +1264,108 @@ function printToExcel() {
     
     const bookingNo = selectedBookings[0].value;
     
-    // Show loading message
-    showAlert('กำลังสร้างไฟล์ Excel...', 'info');
+    // Show loading message - เปลี่ยนข้อความเป็น PDF
+    showAlert('กำลังสร้างไฟล์ PDF...', 'info');
     
-    // กำหนด URL ที่ถูกต้อง
+    const formData = new FormData();
+    formData.append('booking_no', bookingNo);
+    
     fetch('/generate_excel_form_transfer', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            },
-       body: 'booking_no=' + encodeURIComponent(bookingNo)
-   })
-   .then(response => {
-       if (!response.ok) {
-           return response.json().then(errorData => {
-               throw new Error(errorData.message || 'เกิดข้อผิดพลาด');
-           });
-       }
-       
-       // ตรวจสอบประเภทของ response ก่อนดาวน์โหลด
-       const contentType = response.headers.get('content-type');
-       if (contentType && contentType.includes('application/json')) {
-           // กรณีเป็น JSON (error message)
-           return response.json().then(data => {
-               throw new Error(data.message || 'เกิดข้อผิดพลาด');
-           });
-       } else {
-           // กรณีเป็นไฟล์ Excel
-           return response.blob();
-       }
-   })
-   .then(blob => {
-       // สร้าง URL สำหรับ blob object
-       const url = window.URL.createObjectURL(blob);
-       
-       // สร้าง element สำหรับดาวน์โหลด
-       const a = document.createElement('a');
-       a.style.display = 'none';
-       a.href = url;
-       a.download = `Transfer_Booking_${bookingNo}_${new Date().toISOString().split('T')[0].replace(/-/g, '')}.xlsx`;
-       
-       // เพิ่ม element ไปที่ DOM และ trigger การคลิก
-       document.body.appendChild(a);
-       a.click();
-       
-       // Cleanup
-       window.URL.revokeObjectURL(url);
-       document.body.removeChild(a);
-       
-       showAlert('ดาวน์โหลดไฟล์สำเร็จ', 'success');
-   })
-   .catch(error => {
-       console.error('Error:', error);
-       showAlert(`เกิดข้อผิดพลาด: ${error.message}`, 'danger');
-   });
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || 'เกิดข้อผิดพลาด');
+            });
+        }
+        
+        // ตรวจสอบประเภทของ response
+        const contentType = response.headers.get('content-type');
+        console.log('Transfer Response content type:', contentType);
+        
+        if (contentType && contentType.includes('application/json')) {
+            return response.json().then(data => {
+                throw new Error(data.message || 'เกิดข้อผิดพลาด');
+            });
+        } else {
+            return response.blob();
+        }
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const contentType = blob.type || '';
+        console.log('Transfer Blob type:', contentType);
+        
+        if (contentType.includes('application/pdf')) {
+            // กรณีเป็น PDF - เปิดใน tab ใหม่
+            const newTab = window.open(url, '_blank');
+            if (newTab) {
+                newTab.focus();
+                showAlert('เปิดไฟล์ Transfer PDF ในแท็บใหม่สำเร็จ', 'success');
+            } else {
+                downloadTransferFile(url, bookingNo, 'pdf');
+                showAlert('ดาวน์โหลดไฟล์ Transfer PDF สำเร็จ', 'success');
+            }
+        } else {
+            downloadTransferFile(url, bookingNo, 'xlsx');
+            showAlert('ดาวน์โหลดไฟล์ Transfer Excel สำเร็จ', 'success');
+        }
+        
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+        }, 5000);
+    })
+    .catch(error => {
+        console.error('Transfer Error:', error);
+        showAlert(`เกิดข้อผิดพลาด: ${error.message}`, 'danger');
+    });
+}
+
+// ฟังก์ชันช่วยสำหรับดาวน์โหลดไฟล์ Transfer
+function downloadTransferFile(url, bookingNo, fileType) {
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    
+    const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const extension = fileType === 'pdf' ? 'pdf' : 'xlsx';
+    
+    a.download = `Transfer_Booking_${bookingNo}_${dateStr}.${extension}`;
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// ⚠️ เพิ่มฟังก์ชันสำหรับเปิด PDF ในหน้าใหม่โดยตรง (optional)
+function openTransferPdfInNewTab() {
+    const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
+    
+    if (selectedBookings.length === 0) {
+        showAlert('กรุณาเลือกรายการที่ต้องการดู PDF', 'info');
+        return;
+    }
+    
+    if (selectedBookings.length > 1) {
+        showAlert('กรุณาเลือกเพียงรายการเดียวเท่านั้น', 'info');
+        return;
+    }
+    
+    const bookingNo = selectedBookings[0].value;
+    
+    // สร้าง URL สำหรับเปิด PDF โดยตรง
+    const pdfUrl = `/generate_excel_form_transfer?booking_no=${bookingNo}&format=pdf`;
+    
+    // เปิดใน tab ใหม่
+    const newTab = window.open(pdfUrl, '_blank');
+    if (newTab) {
+        newTab.focus();
+        showAlert('กำลังเปิด Transfer PDF ในแท็บใหม่...', 'info');
+    } else {
+        showAlert('กรุณาอนุญาตการเปิดป็อปอัพสำหรับเว็บไซต์นี้', 'warning');
+    }
 }
 
 // ฟังก์ชันสำหรับเปิด Modal Export

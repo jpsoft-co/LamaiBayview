@@ -1217,7 +1217,7 @@ function printToExcel() {
     const bookingNo = selectedBookings[0].value;
     
     // Show loading message
-    showAlert('กำลังสร้างไฟล์ Excel...', 'info');
+    showAlert('กำลังสร้างไฟล์ PDF...', 'info');
     
     // ⚠️ เพิ่ม booking_type
     const formData = new FormData();
@@ -1235,15 +1235,17 @@ function printToExcel() {
             });
         }
         
-        // ตรวจสอบประเภทของ response ก่อนดาวน์โหลด
+        // ตรวจสอบประเภทของ response
         const contentType = response.headers.get('content-type');
+        console.log('Response content type:', contentType);
+        
         if (contentType && contentType.includes('application/json')) {
             // กรณีเป็น JSON (error message)
             return response.json().then(data => {
                 throw new Error(data.message || 'เกิดข้อผิดพลาด');
             });
         } else {
-            // กรณีเป็นไฟล์ Excel
+            // กรณีเป็นไฟล์ (Excel หรือ PDF)
             return response.blob();
         }
     })
@@ -1251,30 +1253,88 @@ function printToExcel() {
         // สร้าง URL สำหรับ blob object
         const url = window.URL.createObjectURL(blob);
         
-        // สร้าง element สำหรับดาวน์โหลด
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
+        // ⚠️ ตรวจสอบประเภทไฟล์จาก response headers
+        const contentType = blob.type || '';
+        console.log('Blob type:', contentType);
         
-        // ⚠️ กำหนดชื่อไฟล์ตามประเภท
-        const bookingType = getCurrentBookingType();
-        const typeName = bookingType === 'tour' ? 'Tour' : 'Motorbike';
-        a.download = `${typeName}_Booking_${bookingNo}_${new Date().toISOString().split('T')[0].replace(/-/g, '')}.xlsx`;
+        if (contentType.includes('application/pdf')) {
+            // กรณีเป็น PDF - เปิดใน tab ใหม่
+            const newTab = window.open(url, '_blank');
+            if (newTab) {
+                newTab.focus();
+                showAlert('เปิดไฟล์ PDF ในแท็บใหม่สำเร็จ', 'success');
+            } else {
+                // ถ้าป็อปอัพถูกบล็อก ให้ดาวน์โหลดแทน
+                downloadFile(url, bookingNo, 'pdf');
+                showAlert('ดาวน์โหลดไฟล์ PDF สำเร็จ', 'success');
+            }
+        } else {
+            // กรณีเป็น Excel - ดาวน์โหลดตามปกติ
+            downloadFile(url, bookingNo, 'xlsx');
+            showAlert('ดาวน์โหลดไฟล์ Excel สำเร็จ', 'success');
+        }
         
-        // เพิ่ม element ไปที่ DOM และ trigger การคลิก
-        document.body.appendChild(a);
-        a.click();
-        
-        // Cleanup
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        showAlert('ดาวน์โหลดไฟล์สำเร็จ', 'success');
+        // Cleanup URL object หลังจาก 5 วินาที
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+        }, 5000);
     })
     .catch(error => {
         console.error('Error:', error);
         showAlert(`เกิดข้อผิดพลาด: ${error.message}`, 'danger');
     });
+}
+
+// ⚠️ ฟังก์ชันช่วยสำหรับดาวน์โหลดไฟล์
+function downloadFile(url, bookingNo, fileType) {
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    
+    // กำหนดชื่อไฟล์และ extension ตามประเภท
+    const bookingType = getCurrentBookingType();
+    const typeName = bookingType === 'tour' ? 'Tour' : 'Motorbike';
+    const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const extension = fileType === 'pdf' ? 'pdf' : 'xlsx';
+    
+    a.download = `${typeName}_Booking_${bookingNo}_${dateStr}.${extension}`;
+    
+    // เพิ่ม element ไปที่ DOM และ trigger การคลิก
+    document.body.appendChild(a);
+    a.click();
+    
+    // Cleanup
+    document.body.removeChild(a);
+}
+
+// ⚠️ เพิ่มฟังก์ชันสำหรับเปิด PDF ในหน้าใหม่โดยตรง (optional)
+function openPdfInNewTab() {
+    const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
+    
+    if (selectedBookings.length === 0) {
+        showAlert('กรุณาเลือกรายการที่ต้องการดู PDF', 'info');
+        return;
+    }
+    
+    if (selectedBookings.length > 1) {
+        showAlert('กรุณาเลือกเพียงรายการเดียวเท่านั้น', 'info');
+        return;
+    }
+    
+    const bookingNo = selectedBookings[0].value;
+    const bookingType = getCurrentBookingType();
+    
+    // สร้าง URL สำหรับเปิด PDF โดยตรง
+    const pdfUrl = `/generate_excel_form?booking_no=${bookingNo}&booking_type=${bookingType}&format=pdf`;
+    
+    // เปิดใน tab ใหม่
+    const newTab = window.open(pdfUrl, '_blank');
+    if (newTab) {
+        newTab.focus();
+        showAlert('กำลังเปิด PDF ในแท็บใหม่...', 'info');
+    } else {
+        showAlert('กรุณาอนุญาตการเปิดป็อปอัพสำหรับเว็บไซต์นี้', 'warning');
+    }
 }
 
 // ===============================================
