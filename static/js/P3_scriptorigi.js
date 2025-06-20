@@ -1,6 +1,6 @@
-// P3_script.js - Motorbike Booking JavaScript (COMPLETE VERSION)
+// P3_script.js - Motorbike Booking JavaScript
 // ===============================================
-// MOTORBIKE BOOKING JAVASCRIPT - COMPLETE
+// MOTORBIKE BOOKING JAVASCRIPT
 // ===============================================
 
 // Global variables for motorbike
@@ -133,89 +133,10 @@ function validateDiscountInput(inputElement) {
 }
 
 // ===============================================
-// UTILITY FUNCTIONS
-// ===============================================
-
-function showAlert(message, type) {
-    if (typeof showNotification === 'function') {
-        let notificationType;
-        switch (type) {
-            case 'success': notificationType = 'success'; break;
-            case 'danger': 
-            case 'error': notificationType = 'error'; break;
-            case 'info': notificationType = 'info'; break;
-            case 'warning': notificationType = 'warning'; break;
-            default: notificationType = 'info';
-        }
-        
-        let duration = type === 'success' ? 4000 : type === 'error' ? 7000 : 5000;
-        showNotification(message, notificationType, duration, true);
-        return;
-    }
-    
-    const alertContainer = document.getElementById('alert-container');
-    if (alertContainer) {
-        alertContainer.textContent = message;
-        alertContainer.className = `alert alert-${type}`;
-        alertContainer.style.display = 'block';
-        setTimeout(() => alertContainer.style.display = 'none', 3000);
-        return;
-    }
-    
-    alert(message);
-}
-
-// เพิ่มฟังก์ชันสำหรับแสดง notification แบบเฉพาะเจาะจง
-function showSuccessAlert(message) { showAlert(message, 'success'); }
-function showErrorAlert(message) { showAlert(message, 'danger'); }
-function showInfoAlert(message) { showAlert(message, 'info'); }
-function showWarningAlert(message) { showAlert(message, 'warning'); }
-
-// ฟังก์ชันสำหรับแสดง loading notification
-function showLoadingNotification(message = 'Processing...') {
-    if (typeof showNotification === 'function') {
-        return showNotification(message, 'info', 0, false);
-    }
-    return null;
-}
-
-// ฟังก์ชันสำหรับปิด loading notification
-function hideLoadingNotification(notification) {
-    if (notification && typeof removeNotification === 'function') {
-        removeNotification(notification);
-    }
-}
-
-function closeAllModals() {
-    const modals = ['editModal', 'exportModal', 'cancelModal'];
-    modals.forEach(modalId => {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.style.display = 'none';
-            modal.style.zIndex = '';
-        }
-    });
-}
-
-// ===============================================
 // MOTORBIKE SPECIFIC FUNCTIONS
 // ===============================================
 
-function loadMotorbikeCompanies() {
-    fetch('/api/companies')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                window.motorbikeCompanies = data.motorbike_companies;
-                populateCompanyOptions(0);
-            } else {
-                console.error('Error loading companies:', data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error loading companies:', error);
-        });
-}
+
 
 function populateCompanyOptions(entryId) {
     const companySelect = document.getElementById(`company_${entryId}`);
@@ -401,42 +322,8 @@ function calculateTotal() {
 }
 
 // ===============================================
-// EDIT MODAL FUNCTIONS
+// EDIT MODAL FUNCTIONS (สำหรับ Edit Modal)
 // ===============================================
-
-// ฟังก์ชันเริ่มต้น company dropdown
-function initializeCompanyDropdown() {
-    const companySelect = document.getElementById('company');
-    if (!companySelect) return;
-    
-    // Clear existing options
-    companySelect.innerHTML = '<option value="">-- Select Company --</option>';
-    
-    // Populate company dropdown
-    window.motorbikeCompanies.forEach(company => {
-        const option = document.createElement('option');
-        option.value = company;
-        option.textContent = company;
-        companySelect.appendChild(option);
-    });
-}
-
-// ฟังก์ชันเริ่มต้น companies ใน edit modal
-function initializeEditCompanies() {
-    const companySelect = document.getElementById('edit_company');
-    if (!companySelect) return;
-    
-    // Clear existing options
-    companySelect.innerHTML = '<option value="">-- Select Company --</option>';
-    
-    // Populate company dropdown
-    window.motorbikeCompanies.forEach(company => {
-        const option = document.createElement('option');
-        option.value = company;
-        option.textContent = company;
-        companySelect.appendChild(option);
-    });
-}
 
 // ฟังก์ชันสำหรับจัดการการเปลี่ยน Company ใน Edit Modal
 function handleEditCompanyChange() {
@@ -537,460 +424,180 @@ function calculateEditTotal() {
     console.log(`Edit Total: ${price} × ${persons} - ${discountResult.discountAmount} = ${discountResult.finalTotal}`);
 }
 
-function editBooking() {
-    const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
+// ===============================================
+// UTILITY FUNCTIONS
+// ===============================================
+
+// Load motorbike companies on page load
+function loadMotorbikeCompanies() {
+    fetch('/api/companies')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.motorbikeCompanies = data.motorbike_companies;
+                populateCompanyOptions(0);
+            } else {
+                console.error('Error loading companies:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading companies:', error);
+        });
+}
+
+// ฟังก์ชันเริ่มต้น company dropdown
+function initializeCompanyDropdown() {
+    const companySelect = document.getElementById('company');
+    if (!companySelect) return;
     
-    if (selectedBookings.length === 0) {
-        showAlert('Please select a booking to edit.', 'info');
+    // Clear existing options
+    companySelect.innerHTML = '<option value="">-- Select Company --</option>';
+    
+    // Populate company dropdown
+    window.motorbikeCompanies.forEach(company => {
+        const option = document.createElement('option');
+        option.value = company;
+        option.textContent = company;
+        companySelect.appendChild(option);
+    });
+}
+
+// ฟังก์ชันเริ่มต้น companies ใน edit modal
+function initializeEditCompanies() {
+    const companySelect = document.getElementById('edit_company');
+    if (!companySelect) return;
+    
+    // Clear existing options
+    companySelect.innerHTML = '<option value="">-- Select Company --</option>';
+    
+    // Populate company dropdown
+    window.motorbikeCompanies.forEach(company => {
+        const option = document.createElement('option');
+        option.value = company;
+        option.textContent = company;
+        companySelect.appendChild(option);
+    });
+}
+
+
+// ปรับปรุงฟังก์ชัน showAlert ให้ทำงานร่วมกับ notification system ได้ดีขึ้น
+function showAlert(message, type) {
+    // ลองใช้ notification system ก่อน (ดีกว่า alert container)
+    if (typeof showNotification === 'function') {
+        let notificationType;
+        switch (type) {
+            case 'success': 
+                notificationType = 'success'; 
+                break;
+            case 'danger': 
+            case 'error':
+                notificationType = 'error'; 
+                break;
+            case 'info': 
+                notificationType = 'info'; 
+                break;
+            case 'warning': 
+                notificationType = 'warning'; 
+                break;
+            default: 
+                notificationType = 'info';
+        }
+        
+        let duration = 5000; // default 5 seconds
+        if (type === 'success') duration = 4000;
+        if (type === 'error' || type === 'danger') duration = 7000;
+        if (type === 'info') duration = 3000;
+        
+        showNotification(message, notificationType, duration, true);
         return;
     }
     
-    if (selectedBookings.length > 1) {
-        showAlert('Please select only one booking to edit.', 'info');
-        return;
-    }
-    
-    // Close other modals first
-    closeAllModals();
-    
-    const bookingNo = selectedBookings[0].value;
-    showAlert('Loading booking details...', 'info');
-    
-    // โหลดข้อมูล companies ก่อน (ถ้ายังไม่มี)
-    if (!window.motorbikeCompanies || window.motorbikeCompanies.length === 0) {
-        loadMotorbikeCompanies();
+    // Fallback: ใช้ alert container ถ้ามี
+    const alertContainer = document.getElementById('alert-container');
+    if (alertContainer) {
+        alertContainer.textContent = message;
+        alertContainer.className = `alert alert-${type}`;
+        alertContainer.style.display = 'block';
+        
         setTimeout(() => {
-            loadBookingDetailsForEdit(bookingNo);
-        }, 1000);
-    } else {
-        loadBookingDetailsForEdit(bookingNo);
-    }
-}
-
-function loadBookingDetailsForEdit(bookingNo) {
-    const formData = new FormData();
-    formData.append('booking_no', bookingNo);
-    formData.append('booking_type', 'motorbike');
-    
-    fetch('/get_booking_details', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const booking = data.booking;
-            console.log("Booking data received:", booking);
-            
-            // ข้อมูลพื้นฐาน
-            document.getElementById('edit_booking_no').value = booking.booking_no;
-            document.getElementById('edit_date').value = booking.travel_date || '';
-            document.getElementById('edit_time').value = booking.pickup_time || '';
-            document.getElementById('edit_name').value = booking.customer_name || '';
-            document.getElementById('edit_surname').value = booking.customer_surname || '';
-            document.getElementById('edit_room').value = booking.room || '';
-            document.getElementById('edit_persons').value = booking.quantity || '1';
-            document.getElementById('edit_status').value = booking.payment_status || 'unpaid';
-            document.getElementById('edit_staffName').value = booking.staff_name || '';
-            
-            // เพิ่มฟิลด์ที่ขาด
-            const editMethod = document.getElementById('edit_method');
-            const editRemark = document.getElementById('edit_remark');
-            const editDiscount = document.getElementById('edit_discount');
-            
-            if (editMethod) editMethod.value = booking.payment_method || '';
-            if (editRemark) editRemark.value = booking.remark || '';
-            if (editDiscount) editDiscount.value = booking.discount || '0';
-            
-            // ตั้งค่า companies
-            initializeEditCompanies();
-            
-            // รอให้ companies โหลดเสร็จแล้วค่อยตั้งค่า
-            setTimeout(() => {
-                if (booking.company_name) {
-                    // สำหรับ motorbike ที่อาจมีหลายค่า ใช้ค่าแรก
-                    const firstCompany = booking.company_name.split(',')[0];
-                    document.getElementById('edit_company').value = firstCompany;
-                    handleEditCompanyChange();
-                    
-                    // รอให้ details โหลดเสร็จแล้วค่อยตั้งค่า
-                    setTimeout(() => {
-                        if (booking.detail) {
-                            const firstDetail = booking.detail.split(',')[0];
-                            document.getElementById('edit_detail').value = firstDetail;
-                            handleEditDetailChange(); // ตั้งค่าราคา
-                        }
-                    }, 500);
-                }
-            }, 300);
-            
-            // ซ่อน alert และแสดง modal
-            const alertContainer = document.getElementById('alert-container');
-            if (alertContainer) {
-                alertContainer.style.display = 'none';
-            }
-            
-            const editModal = document.getElementById('editModal');
-            if (editModal) {
-                editModal.style.display = 'block';
-                editModal.style.zIndex = '10000';
-            }
-        } else {
-            showAlert(data.message || 'Error fetching booking details', 'danger');
-        }
-    })
-    .catch(error => {
-        console.error('Error details:', error);
-        showAlert('An error occurred while fetching booking details.', 'danger');
-    });
-}
-
-function closeModal() {
-    const editModal = document.getElementById('editModal');
-    if (editModal) {
-        editModal.style.display = 'none';
-    }
-}
-
-function saveBooking() {
-    const form = document.getElementById('editForm');
-    if (!form) {
-        showAlert('Edit form not found', 'danger');
+            alertContainer.style.display = 'none';
+        }, 3000);
         return;
     }
     
-    const formData = new FormData(form);
-    formData.append('booking_type', 'motorbike');
-    
-    fetch('/update_booking', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            closeModal();
-            showAlert(data.message, 'success');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showAlert(data.message, 'danger');
-        }
-    })
-    .catch(error => {
-        showAlert('An error occurred while saving booking data.', 'danger');
-        console.error('Error:', error);
-    });
+    // Fallback: ใช้ browser alert เป็นทางเลือกสุดท้าย
+    console.warn('No notification system found, using browser alert');
+    alert(message);
 }
 
-// ===============================================
-// EXPORT MODAL FUNCTIONS (FIXED)
-// ===============================================
+// เพิ่มฟังก์ชันสำหรับแสดง notification แบบเฉพาะเจาะจง
+function showSuccessAlert(message) { showAlert(message, 'success'); }
+function showErrorAlert(message) { showAlert(message, 'danger'); }
+function showInfoAlert(message) { showAlert(message, 'info'); }
+function showWarningAlert(message) { showAlert(message, 'warning'); }
 
-function exportBooking() {
-    console.log('Export Motorbike - Starting...');
-    
-    // Close all other modals first
-    closeAllModals();
-    
-    // Check if modal exists, if not create it
-    let modal = document.getElementById('exportModal');
-    if (!modal) {
-        createExportModal();
-        modal = document.getElementById('exportModal');
+// ฟังก์ชันสำหรับแสดง loading notification
+function showLoadingNotification(message = 'Processing...') {
+    if (typeof showNotification === 'function') {
+        return showNotification(message, 'info', 0, false);
     }
-    
-    if (!modal) {
-        showAlert('Failed to create export modal', 'error');
-        return;
-    }
-    
-    // Set default dates
-    const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const todayFormatted = today.toISOString().split('T')[0];
-    const firstDayFormatted = firstDayOfMonth.toISOString().split('T')[0];
-    
-    // Show modal with forced visibility
-    modal.style.cssText = `
-        display: block !important;
-        position: fixed !important;
-        z-index: 10000 !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        background-color: rgba(0, 0, 0, 0.5) !important;
-        overflow: auto !important;
-    `;
-    
-    // Set default values
-    setTimeout(() => {
-        const exportStartDate = document.getElementById('export_start_date');
-        const exportEndDate = document.getElementById('export_end_date');
-        
-        if (exportStartDate) exportStartDate.value = firstDayFormatted;
-        if (exportEndDate) exportEndDate.value = todayFormatted;
-        
-        toggleExportFields();
-    }, 100);
-    
-    console.log('Export Modal should be visible now');
+    return null;
 }
 
-function createExportModal() {
-    const modalHtml = `
-        <div id="exportModal" class="modal" style="display: none;">
-            <div class="modal-content" style="background-color: white; margin: 5% auto; padding: 20px; border-radius: 8px; width: 80%; max-width: 600px; position: relative; z-index: 10001;">
-                <div class="modal-header" style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 20px;">
-                    <span class="close" onclick="closeExportModal()" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
-                    <h2 style="margin: 0; color: #8c7356;">Export Motorbike Data</h2>
-                </div>
-                <form id="exportForm" class="export-form">
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 10px; font-weight: bold;">Filter Type:</label>
-                        <div class="radio-group" style="display: flex; gap: 15px;">
-                            <label class="radio-option" style="display: flex; align-items: center; cursor: pointer;">
-                                <input type="radio" name="exportFilterType" value="date" checked onchange="toggleExportFields()" style="margin-right: 8px;">
-                                <span>Date Range</span>
-                            </label>
-                            <label class="radio-option" style="display: flex; align-items: center; cursor: pointer;">
-                                <input type="radio" name="exportFilterType" value="month" onchange="toggleExportFields()" style="margin-right: 8px;">
-                                <span>Month Range</span>
-                            </label>
-                            <label class="radio-option" style="display: flex; align-items: center; cursor: pointer;">
-                                <input type="radio" name="exportFilterType" value="year" onchange="toggleExportFields()" style="margin-right: 8px;">
-                                <span>Year Range</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <!-- Date Range Fields -->
-                    <div id="dateRangeFields" style="margin-bottom: 20px;">
-                        <div style="display: flex; gap: 20px;">
-                            <div style="flex: 1;">
-                                <label for="export_start_date" style="display: block; margin-bottom: 5px;">From Date:</label>
-                                <input type="date" id="export_start_date" name="export_start_date" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            </div>
-                            <div style="flex: 1;">
-                                <label for="export_end_date" style="display: block; margin-bottom: 5px;">To Date:</label>
-                                <input type="date" id="export_end_date" name="export_end_date" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Month Range Fields -->
-                    <div id="monthRangeFields" style="display: none; margin-bottom: 20px;">
-                        <div style="display: flex; gap: 20px;">
-                            <div style="flex: 1;">
-                                <label for="export_start_month" style="display: block; margin-bottom: 5px;">From Month:</label>
-                                <input type="month" id="export_start_month" name="export_start_month" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            </div>
-                            <div style="flex: 1;">
-                                <label for="export_end_month" style="display: block; margin-bottom: 5px;">To Month:</label>
-                                <input type="month" id="export_end_month" name="export_end_month" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Year Range Fields -->
-                    <div id="yearRangeFields" style="display: none; margin-bottom: 20px;">
-                        <div style="display: flex; gap: 20px;">
-                            <div style="flex: 1;">
-                                <label for="export_start_year" style="display: block; margin-bottom: 5px;">From Year:</label>
-                                <input type="number" id="export_start_year" name="export_start_year" min="2000" max="2100" placeholder="YYYY" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            </div>
-                            <div style="flex: 1;">
-                                <label for="export_end_year" style="display: block; margin-bottom: 5px;">To Year:</label>
-                                <input type="number" id="export_end_year" name="export_end_year" min="2000" max="2100" placeholder="YYYY" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Payment Status Filter -->
-                    <div class="form-group" style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 10px; font-weight: bold;">Payment Status (Optional):</label>
-                        <div class="radio-group" style="display: flex; gap: 15px;">
-                            <label class="radio-option" style="display: flex; align-items: center; cursor: pointer;">
-                                <input type="radio" name="exportPaymentStatus" value="all" checked style="margin-right: 8px;">
-                                <span>All Status</span>
-                            </label>
-                            <label class="radio-option" style="display: flex; align-items: center; cursor: pointer;">
-                                <input type="radio" name="exportPaymentStatus" value="paid" style="margin-right: 8px;">
-                                <span>Paid Only</span>
-                            </label>
-                            <label class="radio-option" style="display: flex; align-items: center; cursor: pointer;">
-                                <input type="radio" name="exportPaymentStatus" value="unpaid" style="margin-right: 8px;">
-                                <span>Unpaid Only</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="modal-footer" style="padding-top: 20px; border-top: 1px solid #ddd; text-align: right;">
-                        <button type="button" onclick="closeExportModal()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; margin-right: 10px; cursor: pointer;">Cancel</button>
-                        <button type="button" onclick="submitExport()" style="background: #d4b98c; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Export to Excel</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    console.log('Export modal created dynamically');
-}
-
-function closeExportModal() {
-    const exportModal = document.getElementById('exportModal');
-    if (exportModal) {
-        exportModal.style.display = 'none';
-        exportModal.style.zIndex = '';
+// ฟังก์ชันสำหรับปิด loading notification
+function hideLoadingNotification(notification) {
+    if (notification && typeof removeNotification === 'function') {
+        removeNotification(notification);
     }
 }
 
-function toggleExportFields() {
-    const filterTypeRadio = document.querySelector('input[name="exportFilterType"]:checked');
-    if (!filterTypeRadio) return;
+// เพิ่ม Event Listeners สำหรับ Discount Fields
+function initializeDiscountValidation() {
+    const discountInput = document.getElementById('discount');
+    const editDiscountInput = document.getElementById('edit_discount');
     
-    const filterType = filterTypeRadio.value;
-    
-    const dateRangeFields = document.getElementById('dateRangeFields');
-    const monthRangeFields = document.getElementById('monthRangeFields');
-    const yearRangeFields = document.getElementById('yearRangeFields');
-    
-    // Hide all first
-    if (dateRangeFields) dateRangeFields.style.display = 'none';
-    if (monthRangeFields) monthRangeFields.style.display = 'none';
-    if (yearRangeFields) yearRangeFields.style.display = 'none';
-    
-    // Show selected
-    if (filterType === 'date' && dateRangeFields) {
-        dateRangeFields.style.display = 'block';
-    } else if (filterType === 'month' && monthRangeFields) {
-        monthRangeFields.style.display = 'block';
-    } else if (filterType === 'year' && yearRangeFields) {
-        yearRangeFields.style.display = 'block';
-    }
-}
-
-function submitExport() {
-    const filterTypeRadio = document.querySelector('input[name="exportFilterType"]:checked');
-    const paymentStatusRadio = document.querySelector('input[name="exportPaymentStatus"]:checked');
-    
-    if (!filterTypeRadio) {
-        showAlert('Please select filter type', 'warning');
-        return;
+    // สำหรับหน้าหลัก
+    if (discountInput) {
+        discountInput.addEventListener('input', function() {
+            validateDiscountInput(this);
+            // Debounce การคำนวณเพื่อไม่ให้คำนวณบ่อยเกินไป
+            clearTimeout(this.calculationTimeout);
+            this.calculationTimeout = setTimeout(calculateTotal, 300);
+        });
+        
+        discountInput.addEventListener('blur', function() {
+            validateDiscountInput(this);
+            calculateTotal(); // คำนวณทันทีเมื่อออกจากช่อง
+        });
+        
+        // เพิ่ม placeholder และ hint
+        discountInput.placeholder = 'e.g. 100 or 20%';
+        discountInput.title = 'Enter discount amount (e.g. 100) or percentage (e.g. 20%)';
     }
     
-    const filterType = filterTypeRadio.value;
-    const paymentStatus = paymentStatusRadio ? paymentStatusRadio.value : 'all';
-    
-    let formData = new FormData();
-    formData.append('filter_type', filterType);
-    formData.append('payment_status', paymentStatus);
-    
-    // Add date parameters based on filter type
-    if (filterType === 'date') {
-        const startDate = document.getElementById('export_start_date');
-        const endDate = document.getElementById('export_end_date');
+    // สำหรับ Edit Modal
+    if (editDiscountInput) {
+        editDiscountInput.addEventListener('input', function() {
+            validateDiscountInput(this);
+            clearTimeout(this.calculationTimeout);
+            this.calculationTimeout = setTimeout(calculateEditTotal, 300);
+        });
         
-        if (!startDate || !endDate || !startDate.value || !endDate.value) {
-            showAlert('Please select both start and end dates', 'warning');
-            return;
-        }
+        editDiscountInput.addEventListener('blur', function() {
+            validateDiscountInput(this);
+            calculateEditTotal();
+        });
         
-        if (new Date(startDate.value) > new Date(endDate.value)) {
-            showAlert('Start date must be before or equal to end date', 'warning');
-            return;
-        }
-        
-        formData.append('start_date', startDate.value);
-        formData.append('end_date', endDate.value);
-        
-    } else if (filterType === 'month') {
-        const startMonth = document.getElementById('export_start_month');
-        const endMonth = document.getElementById('export_end_month');
-        
-        if (!startMonth || !endMonth || !startMonth.value || !endMonth.value) {
-            showAlert('Please select both start and end months', 'warning');
-            return;
-        }
-        
-        if (new Date(startMonth.value + '-01') > new Date(endMonth.value + '-01')) {
-            showAlert('Start month must be before or equal to end month', 'warning');
-            return;
-        }
-        
-        formData.append('start_month', startMonth.value);
-        formData.append('end_month', endMonth.value);
-        
-    } else if (filterType === 'year') {
-        const startYear = document.getElementById('export_start_year');
-        const endYear = document.getElementById('export_end_year');
-        
-        if (!startYear || !endYear || !startYear.value || !endYear.value) {
-            showAlert('Please select both start and end years', 'warning');
-            return;
-        }
-        
-        if (parseInt(startYear.value) > parseInt(endYear.value)) {
-            showAlert('Start year must be before or equal to end year', 'warning');
-            return;
-        }
-        
-        formData.append('start_year', startYear.value);
-        formData.append('end_year', endYear.value);
+        editDiscountInput.placeholder = 'e.g. 100 or 20%';
+        editDiscountInput.title = 'Enter discount amount (e.g. 100) or percentage (e.g. 20%)';
     }
-    
-    showAlert('Generating Excel file...', 'info');
-    
-    fetch('/export_motorbike', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(errorData => {
-                throw new Error(errorData.message || 'An error occurred');
-            });
-        }
-        
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-            return response.json().then(data => {
-                throw new Error(data.message || 'An error occurred');
-            });
-        } else {
-            return response.blob();
-        }
-    })
-    .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        
-        const today = new Date();
-        const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-        a.download = `Motorbike_Export_${dateStr}.xlsx`;
-        
-        document.body.appendChild(a);
-        a.click();
-        
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        closeExportModal();
-        showAlert('Export completed successfully', 'success');
-    })
-    .catch(error => {
-        console.error('Export error:', error);
-        showAlert(`Error: ${error.message}`, 'error');
-    });
 }
 
 // ===============================================
 // BOOKING MANAGEMENT FUNCTIONS
 // ===============================================
 
+// ฟังก์ชันยกเลิกการจอง
 function cancelBookings() {
     const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
     
@@ -1003,6 +610,7 @@ function cancelBookings() {
     showCancelModal(selectedBookings);
 }
 
+// ฟังก์ชันแสดง modal สำหรับกรอกชื่อผู้ cancel
 function showCancelModal(selectedBookings) {
     // สร้าง modal element
     const modalHtml = `
@@ -1064,6 +672,7 @@ function showCancelModal(selectedBookings) {
     });
 }
 
+// ฟังก์ชันปิด cancel modal
 function closeCancelModal() {
     const modal = document.getElementById('cancelModal');
     if (modal) {
@@ -1071,6 +680,7 @@ function closeCancelModal() {
     }
 }
 
+// ฟังก์ชันยืนยันการ cancel
 function confirmCancel() {
     const nameInput = document.getElementById('cancelName');
     const cancelName = nameInput ? nameInput.value.trim() : '';
@@ -1146,20 +756,382 @@ function confirmCancel() {
     });
 }
 
-function printToExcel() {
+// ฟังก์ชันแก้ไขการจอง
+function editBooking() {
     const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
     
     if (selectedBookings.length === 0) {
-        showAlert('Please select a booking', 'info');
+        showAlert('Please select a booking to edit.', 'info');
         return;
     }
     
     if (selectedBookings.length > 1) {
-        showAlert('Please select only one booking', 'info');
+        showAlert('Please select only one booking to edit.', 'info');
         return;
     }
     
     const bookingNo = selectedBookings[0].value;
+    showAlert('Loading booking details...', 'info');
+    
+    // โหลดข้อมูล companies ก่อน (ถ้ายังไม่มี)
+    if (!window.motorbikeCompanies || window.motorbikeCompanies.length === 0) {
+        loadMotorbikeCompanies();
+        setTimeout(() => {
+            loadBookingDetailsForEdit(bookingNo);
+        }, 1000);
+    } else {
+        loadBookingDetailsForEdit(bookingNo);
+    }
+}
+
+// ฟังก์ชันโหลดข้อมูลการจองสำหรับแก้ไข
+function loadBookingDetailsForEdit(bookingNo) {
+    const formData = new FormData();
+    formData.append('booking_no', bookingNo);
+    formData.append('booking_type', 'motorbike');
+    
+    fetch('/get_booking_details', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const booking = data.booking;
+            console.log("Booking data received:", booking);
+            
+            // ข้อมูลพื้นฐาน
+            document.getElementById('edit_booking_no').value = booking.booking_no;
+            document.getElementById('edit_date').value = booking.travel_date || '';
+            document.getElementById('edit_time').value = booking.pickup_time || '';
+            document.getElementById('edit_name').value = booking.customer_name || '';
+            document.getElementById('edit_surname').value = booking.customer_surname || '';
+            document.getElementById('edit_room').value = booking.room || '';
+            document.getElementById('edit_persons').value = booking.quantity || '1';
+            document.getElementById('edit_status').value = booking.payment_status || 'unpaid';
+            document.getElementById('edit_staffName').value = booking.staff_name || '';
+            
+            // เพิ่มฟิลด์ที่ขาด
+            const editMethod = document.getElementById('edit_method');
+            const editRemark = document.getElementById('edit_remark');
+            const editDiscount = document.getElementById('edit_discount');
+            
+            if (editMethod) editMethod.value = booking.payment_method || '';
+            if (editRemark) editRemark.value = booking.remark || '';
+            if (editDiscount) editDiscount.value = booking.discount || '0';
+            
+            // ตั้งค่า companies
+            initializeEditCompanies();
+            
+            // รอให้ companies โหลดเสร็จแล้วค่อยตั้งค่า
+            setTimeout(() => {
+                if (booking.company_name) {
+                    // สำหรับ motorbike ที่อาจมีหลายค่า ใช้ค่าแรก
+                    const firstCompany = booking.company_name.split(',')[0];
+                    document.getElementById('edit_company').value = firstCompany;
+                    handleEditCompanyChange();
+                    
+                    // รอให้ details โหลดเสร็จแล้วค่อยตั้งค่า
+                    setTimeout(() => {
+                        if (booking.detail) {
+                            const firstDetail = booking.detail.split(',')[0];
+                            document.getElementById('edit_detail').value = firstDetail;
+                            handleEditDetailChange(); // ตั้งค่าราคา
+                        }
+                    }, 500);
+                }
+            }, 300);
+            
+            // ซ่อน alert และแสดง modal
+            const alertContainer = document.getElementById('alert-container');
+            if (alertContainer) {
+                alertContainer.style.display = 'none';
+            }
+            
+            document.getElementById('editModal').style.display = 'block';
+        } else {
+            showAlert(data.message || 'Error fetching booking details', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error details:', error);
+        showAlert('An error occurred while fetching booking details.', 'danger');
+    });
+}
+
+// ฟังก์ชันปิด Modal
+function closeModal() {
+    const editModal = document.getElementById('editModal');
+    if (editModal) {
+        editModal.style.display = 'none';
+    }
+}
+
+// ฟังก์ชันบันทึกการแก้ไข
+function saveBooking() {
+    const form = document.getElementById('editForm');
+    if (!form) {
+        showAlert('Edit form not found', 'danger');
+        return;
+    }
+    
+    const formData = new FormData(form);
+    formData.append('booking_type', 'motorbike');
+    
+    fetch('/update_booking', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeModal();
+            showAlert(data.message, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('An error occurred while saving booking data.', 'danger');
+        console.error('Error:', error);
+    });
+}
+
+// ===============================================
+// EXPORT FUNCTIONS
+// ===============================================
+
+// เพิ่มใน P3_script.js
+// เพิ่มฟังก์ชันปิด Modal ทั้งหมด
+function closeAllModals() {
+    const modals = ['editModal', 'exportModal', 'cancelModal'];
+    modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
+
+// แก้ไข exportBooking function
+function exportBooking() {
+    closeAllModals();  // ✅ ปิดทุก Modal ก่อน
+    
+    const modal = document.getElementById('exportModal');
+    if (!modal) {
+        showAlert('Export modal not found', 'error');
+        return;
+    }
+    
+    // ✅ ปิด Edit Modal ก่อน (ถ้ามี)
+    const editModal = document.getElementById('editModal');
+    if (editModal) {
+        editModal.style.display = 'none';
+    }
+    
+    // ✅ ตั้ง z-index ให้สูงกว่า
+    modal.style.display = 'block';
+    modal.style.zIndex = '10001';  // สูงกว่า Edit Modal
+    modal.style.position = 'fixed';
+    
+    console.log('Export modal should be on top now');
+    
+    // Set default values...
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    const todayFormatted = today.toISOString().split('T')[0];
+    const firstDayFormatted = firstDayOfMonth.toISOString().split('T')[0];
+    
+    const exportStartDate = document.getElementById('export_start_date');
+    const exportEndDate = document.getElementById('export_end_date');
+    
+    if (exportStartDate) exportStartDate.value = firstDayFormatted;
+    if (exportEndDate) exportEndDate.value = todayFormatted;
+    
+    toggleExportFields();
+}
+
+// ฟังก์ชันปิด Export Modal
+function closeExportModal() {
+    const exportModal = document.getElementById('exportModal');
+    if (exportModal) {
+        exportModal.style.display = 'none';
+        exportModal.style.zIndex = '';  // ✅ clear z-index
+    }
+}
+
+// ฟังก์ชันสลับระหว่างช่องกรอกข้อมูลตามประเภทการกรอง
+function toggleExportFields() {
+    const filterTypeRadio = document.querySelector('input[name="exportFilterType"]:checked');
+    if (!filterTypeRadio) return;
+    
+    const filterType = filterTypeRadio.value;
+    
+    // ซ่อนทุกช่องกรอกก่อน
+    const dateRangeFields = document.getElementById('dateRangeFields');
+    const monthRangeFields = document.getElementById('monthRangeFields');
+    const yearRangeFields = document.getElementById('yearRangeFields');
+    
+    if (dateRangeFields) dateRangeFields.style.display = 'none';
+    if (monthRangeFields) monthRangeFields.style.display = 'none';
+    if (yearRangeFields) yearRangeFields.style.display = 'none';
+    
+    // แสดงช่องกรอกตามประเภทที่เลือก
+    if (filterType === 'date' && dateRangeFields) {
+        dateRangeFields.style.display = 'block';
+    } else if (filterType === 'month' && monthRangeFields) {
+        monthRangeFields.style.display = 'block';
+    } else if (filterType === 'year' && yearRangeFields) {
+        yearRangeFields.style.display = 'block';
+    }
+}
+
+// ฟังก์ชันส่งข้อมูลเพื่อ Export
+function submitExport() {
+    const filterTypeRadio = document.querySelector('input[name="exportFilterType"]:checked');
+    const paymentStatusRadio = document.querySelector('input[name="exportPaymentStatus"]:checked');
+    
+    if (!filterTypeRadio) {
+        showAlert('Please select filter type', 'info');
+        return;
+    }
+    
+    const filterType = filterTypeRadio.value;
+    const paymentStatus = paymentStatusRadio ? paymentStatusRadio.value : 'all';
+    
+    let formData = new FormData();
+    formData.append('filter_type', filterType);
+    formData.append('payment_status', paymentStatus);
+    
+    // เพิ่มข้อมูลตามประเภทการกรอง
+    if (filterType === 'date') {
+        const startDate = document.getElementById('export_start_date');
+        const endDate = document.getElementById('export_end_date');
+        
+        if (!startDate || !endDate || !startDate.value || !endDate.value) {
+            showAlert('Please select both start and end dates', 'info');
+            return;
+        }
+        
+        if (new Date(startDate.value) > new Date(endDate.value)) {
+            showAlert('Start date must be before or equal to end date', 'warning');
+            return;
+        }
+        
+        formData.append('start_date', startDate.value);
+        formData.append('end_date', endDate.value);
+        
+    } else if (filterType === 'month') {
+        const startMonth = document.getElementById('export_start_month');
+        const endMonth = document.getElementById('export_end_month');
+        
+        if (!startMonth || !endMonth || !startMonth.value || !endMonth.value) {
+            showAlert('Please select both start and end months', 'info');
+            return;
+        }
+        
+        if (new Date(startMonth.value + '-01') > new Date(endMonth.value + '-01')) {
+            showAlert('Start month must be before or equal to end month', 'warning');
+            return;
+        }
+        
+        formData.append('start_month', startMonth.value);
+        formData.append('end_month', endMonth.value);
+        
+    } else if (filterType === 'year') {
+        const startYear = document.getElementById('export_start_year');
+        const endYear = document.getElementById('export_end_year');
+        
+        if (!startYear || !endYear || !startYear.value || !endYear.value) {
+            showAlert('Please select both start and end years', 'info');
+            return;
+        }
+        
+        if (parseInt(startYear.value) > parseInt(endYear.value)) {
+            showAlert('Start year must be before or equal to end year', 'warning');
+            return;
+        }
+        
+        formData.append('start_year', startYear.value);
+        formData.append('end_year', endYear.value);
+    }
+    
+    // แสดงข้อความกำลังดำเนินการ
+    showAlert('Generating Excel file...', 'info');
+    
+    // ส่งข้อมูลไปยัง motorbike export endpoint
+    fetch('/export_motorbike', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || 'An error occurred');
+            });
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json().then(data => {
+                throw new Error(data.message || 'An error occurred');
+            });
+        } else {
+            return response.blob();
+        }
+    })
+    .then(blob => {
+        // สร้าง URL สำหรับ blob object
+        const url = window.URL.createObjectURL(blob);
+        
+        // สร้าง element สำหรับดาวน์โหลด
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        
+        // กำหนดชื่อไฟล์
+        const today = new Date();
+        const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+        let filename = `Motorbike_Export_${dateStr}.xlsx`;
+        a.download = filename;
+        
+        // เพิ่ม element ไปที่ DOM และ trigger การคลิก
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        // ปิด modal และแสดงข้อความสำเร็จ
+        closeExportModal();
+        showAlert('Export completed successfully', 'success');
+    })
+    .catch(error => {
+        console.error('Export error:', error);
+        showAlert(`Error: ${error.message}`, 'danger');
+    });
+}
+
+// ฟังก์ชันสำหรับ Print Excel
+function printToExcel() {
+    const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
+    
+    if (selectedBookings.length === 0) {
+        showAlert('Please select list', 'info');
+        return;
+    }
+    
+    if (selectedBookings.length > 1) {
+        showAlert('Please select at least 1', 'info');
+        return;
+    }
+    
+    const bookingNo = selectedBookings[0].value;
+    
+    // Show loading message
     showAlert('Generating PDF...', 'info');
     
     const formData = new FormData();
@@ -1177,108 +1149,94 @@ function printToExcel() {
             });
         }
         
+        // ตรวจสอบประเภทของ response
         const contentType = response.headers.get('content-type');
         console.log('Response content type:', contentType);
         
         if (contentType && contentType.includes('application/json')) {
+            // กรณีเป็น JSON (error message)
             return response.json().then(data => {
                 throw new Error(data.message || 'Error');
             });
         } else {
+            // กรณีเป็นไฟล์ (Excel หรือ PDF)
             return response.blob();
         }
     })
     .then(blob => {
+        // สร้าง URL สำหรับ blob object
         const url = window.URL.createObjectURL(blob);
+        
+        // ตรวจสอบประเภทไฟล์จาก response headers
         const contentType = blob.type || '';
         console.log('Blob type:', contentType);
         
         if (contentType.includes('application/pdf')) {
+            // กรณีเป็น PDF - เปิดใน tab ใหม่
             const newTab = window.open(url, '_blank');
             if (newTab) {
                 newTab.focus();
-                showAlert('PDF opened in new tab', 'success');
+                showAlert('Open PDF in new tab', 'success');
             } else {
+                // ถ้าป็อปอัพถูกบล็อก ให้ดาวน์โหลดแทน
                 downloadFile(url, bookingNo, 'pdf');
-                showAlert('PDF downloaded successfully', 'success');
+                showAlert('Success Download PDF', 'success');
             }
         } else {
+            // กรณีเป็น Excel - ดาวน์โหลดตามปกติ
             downloadFile(url, bookingNo, 'xlsx');
-            showAlert('Excel downloaded successfully', 'success');
+            showAlert('Success Download Excel', 'success');
         }
         
-        setTimeout(() => window.URL.revokeObjectURL(url), 5000);
+        // Cleanup URL object หลังจาก 5 วินาที
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+        }, 5000);
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert(`Error: ${error.message}`, 'error');
+        showAlert(`Error: ${error.message}`, 'danger');
     });
 }
 
+// ฟังก์ชันช่วยสำหรับดาวน์โหลดไฟล์
 function downloadFile(url, bookingNo, fileType) {
     const a = document.createElement('a');
     a.style.display = 'none';
     a.href = url;
     
+    // กำหนดชื่อไฟล์และ extension ตามประเภท
     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
     const extension = fileType === 'pdf' ? 'pdf' : 'xlsx';
+    
     a.download = `Motorbike_Booking_${bookingNo}_${dateStr}.${extension}`;
     
+    // เพิ่ม element ไปที่ DOM และ trigger การคลิก
     document.body.appendChild(a);
     a.click();
+    
+    // Cleanup
     document.body.removeChild(a);
-}
-
-// ===============================================
-// DISCOUNT VALIDATION FUNCTIONS
-// ===============================================
-
-function initializeDiscountValidation() {
-    const discountInput = document.getElementById('discount');
-    const editDiscountInput = document.getElementById('edit_discount');
-    
-    // สำหรับหน้าหลัก
-    if (discountInput) {
-        discountInput.addEventListener('input', function() {
-            validateDiscountInput(this);
-            clearTimeout(this.calculationTimeout);
-            this.calculationTimeout = setTimeout(calculateTotal, 300);
-        });
-        
-        discountInput.addEventListener('blur', function() {
-            validateDiscountInput(this);
-            calculateTotal();
-        });
-        
-        discountInput.placeholder = 'e.g. 100 or 20%';
-        discountInput.title = 'Enter discount amount (e.g. 100) or percentage (e.g. 20%)';
-    }
-    
-    // สำหรับ Edit Modal
-    if (editDiscountInput) {
-        editDiscountInput.addEventListener('input', function() {
-            validateDiscountInput(this);
-            clearTimeout(this.calculationTimeout);
-            this.calculationTimeout = setTimeout(calculateEditTotal, 300);
-        });
-        
-        editDiscountInput.addEventListener('blur', function() {
-            validateDiscountInput(this);
-            calculateEditTotal();
-        });
-        
-        editDiscountInput.placeholder = 'e.g. 100 or 20%';
-        editDiscountInput.title = 'Enter discount amount (e.g. 100) or percentage (e.g. 20%)';
-    }
 }
 
 // ===============================================
 // EVENT LISTENERS & INITIALIZATION
 // ===============================================
 
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Motorbike script loaded successfully');
+// Event listener สำหรับปิด modal เมื่อคลิกนอกพื้นที่
+window.onclick = function(event) {
+    const editModal = document.getElementById('editModal');
+    const exportModal = document.getElementById('exportModal');
     
+    if (event.target == editModal) {
+        closeModal();
+    } else if (event.target == exportModal) {
+        closeExportModal();
+    }
+};
+
+// Initialize เมื่อโหลดหน้า
+document.addEventListener('DOMContentLoaded', function() {
     // Load companies data
     loadMotorbikeCompanies();
     
@@ -1374,6 +1332,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // เพิ่ม event listeners สำหรับ Export Modal radio buttons
+    const exportFilterRadios = document.querySelectorAll('input[name="exportFilterType"]');
+    exportFilterRadios.forEach(radio => {
+        radio.addEventListener('change', toggleExportFields);
+    });
+    
     // Date validation สำหรับ Motorbike Period
     const searchDate = document.getElementById('searchDate');
     const searchDateTo = document.getElementById('searchDateTo');
@@ -1404,7 +1368,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Close modals when clicking outside
+    // ปิด modal เมื่อคลิกนอกพื้นที่
     window.addEventListener('click', function(event) {
         const exportModal = document.getElementById('exportModal');
         const editModal = document.getElementById('editModal');
@@ -1416,7 +1380,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Close modals on ESC key
+    // ปิด modal เมื่อกด ESC
     document.addEventListener('keydown', function(event) {
         if (event.key === 'Escape') {
             const cancelModal = document.getElementById('cancelModal');
@@ -1432,6 +1396,4 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-    
-    console.log('Motorbike script initialization complete');
 });

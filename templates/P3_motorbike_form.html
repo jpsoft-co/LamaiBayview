@@ -322,21 +322,38 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="booking_no">Booking No</label>
-                            <select class="form-control" id="booking_no" name="booking_no">
-                                <option value="">Select Booking No</option>
+                            <input type="text" 
+                                class="form-control" 
+                                id="booking_no" 
+                                name="booking_no" 
+                                placeholder="Enter booking number (e.g., M250101001)"
+                                value="{{ search_booking_no if search_booking_no else '' }}"
+                                list="booking_no_list">
+                            
+                            <!-- Datalist สำหรับ autocomplete -->
+                            <datalist id="booking_no_list">
                                 {% for booking in booking_list|default([]) %}
-                                <option value="{{ booking.booking_no }}" {% if search_booking_no == booking.booking_no %}selected{% endif %}>{{ booking.booking_no }}</option>
+                                <option value="{{ booking.booking_no }}">{{ booking.booking_no }} - {{ booking.customer_name }} {{ booking.customer_surname }}</option>
                                 {% endfor %}
-                            </select>
+                            </datalist>
                         </div>
+                        
                         <div class="form-group">
                             <label class="form-label" for="name_surname">Name & Surname</label>
-                            <select class="form-control" id="name_surname" name="name_surname">
-                                <option value="">Select Name & Surname</option>
+                            <input type="text" 
+                                class="form-control" 
+                                id="name_surname" 
+                                name="name_surname" 
+                                placeholder="Enter customer name (e.g., John Smith)"
+                                value="{{ search_name_surname if search_name_surname else '' }}"
+                                list="name_surname_list">
+                            
+                            <!-- Datalist สำหรับ autocomplete -->
+                            <datalist id="name_surname_list">
                                 {% for booking in booking_list|default([]) %}
-                                <option value="{{ booking.customer_name }} {{ booking.customer_surname }}" {% if search_name_surname == (booking.customer_name + ' ' + booking.customer_surname) %}selected{% endif %}>{{ booking.customer_name }} {{ booking.customer_surname }}</option>
+                                <option value="{{ booking.customer_name }} {{ booking.customer_surname }}">{{ booking.booking_no }} - {{ booking.customer_name }} {{ booking.customer_surname }}</option>
                                 {% endfor %}
-                            </select>
+                            </datalist>
                         </div>
                     </div>
                     <button type="submit" class="btn">Search</button>
@@ -503,7 +520,7 @@
                         <option value="Cash">Cash</option>
                         <option value="Credit">Credit/Debit cards</option>
                         <option value="Bank">Bank transfer</option>
-                        <option value=""></option>
+                        <option value="Unpaid">Unpaid</option>
                     </select>
             </div>
 
@@ -533,100 +550,6 @@
     </div>
 </div>
 
-<!-- Export Modal สำหรับ Motorbike -->
-<div id="exportModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <span class="close" onclick="closeExportModal()">&times;</span>
-            <h2>Export Motorbike Data</h2>
-        </div>
-        <form id="exportForm" class="export-form">
-            <div class="form-group">
-                <label>Filter Type:</label>
-                <div class="radio-group">
-                    <label class="radio-option">
-                        <input type="radio" name="exportFilterType" value="date" checked onchange="toggleExportFields()">
-                        <span class="radio-label">Date Range</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="exportFilterType" value="month" onchange="toggleExportFields()">
-                        <span class="radio-label">Month Range</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="exportFilterType" value="year" onchange="toggleExportFields()">
-                        <span class="radio-label">Year Range</span>
-                    </label>
-                </div>
-            </div>
-            
-            <!-- Date Range Fields -->
-            <div id="dateRangeFields">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="export_start_date">From Date:</label>
-                        <input type="date" id="export_start_date" name="export_start_date">
-                    </div>
-                    <div class="form-group">
-                        <label for="export_end_date">To Date:</label>
-                        <input type="date" id="export_end_date" name="export_end_date">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Month Range Fields -->
-            <div id="monthRangeFields" style="display: none;">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="export_start_month">From Month:</label>
-                        <input type="month" id="export_start_month" name="export_start_month">
-                    </div>
-                    <div class="form-group">
-                        <label for="export_end_month">To Month:</label>
-                        <input type="month" id="export_end_month" name="export_end_month">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Year Range Fields -->
-            <div id="yearRangeFields" style="display: none;">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="export_start_year">From Year:</label>
-                        <input type="number" id="export_start_year" name="export_start_year" min="2000" max="2100" placeholder="YYYY">
-                    </div>
-                    <div class="form-group">
-                        <label for="export_end_year">To Year:</label>
-                        <input type="number" id="export_end_year" name="export_end_year" min="2000" max="2100" placeholder="YYYY">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Payment Status Filter -->
-            <div class="form-group">
-                <label>Payment Status (Optional):</label>
-                <div class="radio-group">
-                    <label class="radio-option">
-                        <input type="radio" name="exportPaymentStatus" value="all" checked>
-                        <span class="radio-label">All Status</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="exportPaymentStatus" value="paid">
-                        <span class="radio-label">Paid Only</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="exportPaymentStatus" value="unpaid">
-                        <span class="radio-label">Unpaid Only</span>
-                    </label>
-                </div>
-            </div>
-            
-            <div class="modal-footer">
-                <button type="button" class="card-btn" onclick="closeExportModal()">Cancel</button>
-                <button type="button" class="card-btn" onclick="submitExport()">Export to Excel</button>
-            </div>
-        </form>
-    </div>
-</div>
 
 <!-- Scripts สำหรับ Motorbike -->
 <script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
