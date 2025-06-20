@@ -1,4 +1,4 @@
-<!-- P1-form -->
+<!-- P3_motorbike_form.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -359,6 +359,7 @@
                                     <th>Company Name</th>
                                     <th>Detail</th>
                                     <th>Quantity</th>
+                                    <th>Price</th>
                                     <th>Discount</th>
                                     <th>Recieved</th>
                                     <th>Status</th>
@@ -379,9 +380,10 @@
                                     <td>{{ booking.booking_no }}</td>
                                     <td>{{ booking.customer_name }} {{ booking.customer_surname }}</td>
                                     <td>{{ booking.room }}</td>
-                                    <td>{{ booking.company_name }}</td>
-                                    <td>{{ booking.detail }}</td>
-                                    <td>{{ booking.quantity }}</td>
+                                    <td>{{ booking.company_name.split(',') | join('<br>') | safe }}</td>
+                                    <td>{{ booking.detail.split(',') | join('<br>') | safe }}</td>
+                                    <td>{{ booking.quantity.split(',') | join('<br>') | safe }}</td>
+                                    <td>{{ booking.price.split(',') | join('<br>') | safe }}</td>
                                     <td>{{ booking.discount }}</td>
                                     <td>{{ booking.received }}</td>
                                     <td class="{% if booking.payment_status == 'paid' %}status-paid{% elif booking.payment_status == 'unpaid' %}status-unpaid{% endif %}">

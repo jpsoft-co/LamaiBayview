@@ -1,4 +1,4 @@
-<!-- P1 -->
+<!-- P3_motorbike_rental.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -225,6 +225,59 @@
         color: #fff;
     }
 }
+
+/* Additional styles for motorbike entries */
+.motorbike-entry {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    margin-top: 15px;
+    background-color: #f9f9f9;
+    position: relative;
+}
+
+.motorbike-entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.motorbike-entry-title {
+    font-weight: bold;
+    color: var(--dark-gold);
+}
+
+.remove-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.remove-btn:hover {
+    background-color: #c82333;
+}
+
+.add-btn {
+    background-color: var(--dark-gold);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 20px;
+    cursor: pointer;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.add-btn:hover {
+    background-color: #996f0b;
+}
+
 </style>
     <title>Motorbike Booking Form</title>
 </head>
@@ -324,56 +377,61 @@
                     {% endfor %}
                 </select>
             </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label" for="company">Company</label>
-                    <select id="company" name="company" class="form-control" required onchange="handleCompanyChange()">
-                        <option value="">-- Select Company --</option>
-                    </select>
+
+            <div class="form-group">
+                <!-- Motorbike Entries Section -->
+                <div id="motorbikeEntries">
+                    <div class="motorbike-entry" data-entry-id="0">
+                        <div class="motorbike-entry-header">
+                            <span class="motorbike-entry-title">Motorbike 1</span>
+                            <button type="button" class="remove-btn" onclick="removeMotorbikeEntry(0)" style="display: none;">Remove</button>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="company_0">Company</label>
+                                <select id="company_0" name="company[]" class="form-control" required onchange="handleCompanyChange(0)">
+                                    <option value="">-- Select Company --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="detail_0">Detail</label>
+                                <select id="detail_0" name="detail[]" class="form-control" required onchange="handleDetailChange(0)">
+                                    <option value="">-- Select Detail --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="persons_0">Persons</label>
+                                <input type="number" class="form-control" id="persons_0" name="persons[]" min="1" placeholder="Number of persons" required onchange="calculateTotal()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="price_0">Price</label>
+                                <input type="number" class="form-control" id="price_0" name="price[]" placeholder="Price per person" required readonly>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="detail">Detail</label>
-                    <select id="detail" name="detail" class="form-control" required onchange="handleDetailChange()">
-                        <option value="">-- Select Detail --</option>
-                    </select>
-                </div>
+
+                <button type="button" class="add-btn" onclick="addMotorbikeEntry()">Add Another Motorbike</button>
             </div>
-            
-            <div class="form-row">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="discount">Discount</label>
+                        <input type="text" class="form-control" id="discount" name="discount" placeholder="discount" onchange="calculateTotal()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="total">Total</label>
+                        <input type="text" class="form-control" id="total" readonly placeholder="Total amount">
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label class="form-label" for="time">Time</label>
                     <input type="time" class="form-control" id="time" name="time" required>
                 </div>
-                <div class="form-group">
-                    <label class="form-label" for="date">Date</label>
-                    <input type="date" class="form-control" id="date" name="date" value="{{ today }}" required>
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label" for="persons">Persons</label>
-                    <input type="number" class="form-control" id="persons" name="persons" min="1" placeholder="Number of persons" required>
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label" for="price">Price</label>
-                    <input type="number" class="form-control" id="price" name="price" placeholder="Price per person" required readonly>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="discount">Discount</label>
-                    <input type="text" class="form-control" id="discount" name="discount" placeholder="discount">
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label" for="total">Total</label>
-                    <input type="text" class="form-control" id="total" readonly placeholder="Total amount">
-                </div>
+
                 <div class="form-group">
                     <label class="form-label" for="status">Status</label>
                     <select class="form-control" id="status" name="status" required>
@@ -382,7 +440,7 @@
                         <option value="unpaid">Unpaid</option>
                     </select>
                 </div>
-            </div>
+            
 
             <div class="form-row">
                 <div class="form-group">
@@ -407,6 +465,11 @@
                 </div>
             </div>
             
+            <!-- <div class="form-group"> -->
+                <!-- <label class="form-label" for="date">Date</label>
+                <input type="date" class="form-control" id="date" name="date" value="{{ today }}" required>
+            </div> -->
+
             <div class="divider"></div>
             
             <div class="search-section">
@@ -433,10 +496,277 @@
     <script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
     <script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
     <script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/P1P3_script.js') }}"></script>
     <script src="{{ url_for('static', filename='js/notification.js') }}"></script>
     <script src="{{ url_for('static', filename='js/setting_protection.js') }}"></script>
     <script src="{{ url_for('static', filename='js/loading.js') }}"></script>
+    <script>
+let entryCounter = 0;
+let motorbikeCompanies = [];
+
+// Load motorbike companies on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadMotorbikeCompanies();
+});
+
+function loadMotorbikeCompanies() {
+    fetch('/api/companies')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                motorbikeCompanies = data.motorbike_companies;
+                populateCompanyOptions(0);
+            } else {
+                console.error('Error loading companies:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading companies:', error);
+        });
+}
+
+function populateCompanyOptions(entryId) {
+    const companySelect = document.getElementById(`company_${entryId}`);
+    companySelect.innerHTML = '<option value="">-- Select Company --</option>';
+    
+    motorbikeCompanies.forEach(company => {
+        const option = document.createElement('option');
+        option.value = company;
+        option.textContent = company;
+        companySelect.appendChild(option);
+    });
+}
+
+function handleCompanyChange(entryId) {
+    const companySelect = document.getElementById(`company_${entryId}`);
+    const detailSelect = document.getElementById(`detail_${entryId}`);
+    const priceInput = document.getElementById(`price_${entryId}`);
+    
+    const selectedCompany = companySelect.value;
+    
+    // Clear detail and price
+    detailSelect.innerHTML = '<option value="">-- Select Detail --</option>';
+    priceInput.value = '';
+    
+    if (selectedCompany) {
+        // Fetch details for selected company
+        const formData = new FormData();
+        formData.append('experience_type', 'motorbike');
+        formData.append('company_name', selectedCompany);
+        
+        fetch('/get_company_details', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                data.details.forEach(detailData => {
+                    const option = document.createElement('option');
+                    option.value = detailData.detail;
+                    option.textContent = detailData.detail;
+                    option.dataset.price = detailData.received;
+                    detailSelect.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    
+    calculateTotal();
+}
+
+function handleDetailChange(entryId) {
+    const detailSelect = document.getElementById(`detail_${entryId}`);
+    const priceInput = document.getElementById(`price_${entryId}`);
+    
+    if (detailSelect.selectedIndex > 0) {
+        const selectedOption = detailSelect.options[detailSelect.selectedIndex];
+        const price = selectedOption.dataset.price || '';
+        priceInput.value = price;
+    } else {
+        priceInput.value = '';
+    }
+    
+    calculateTotal();
+}
+
+function addMotorbikeEntry() {
+    entryCounter++;
+    const entriesContainer = document.getElementById('motorbikeEntries');
+    
+    const entryDiv = document.createElement('div');
+    entryDiv.className = 'motorbike-entry';
+    entryDiv.setAttribute('data-entry-id', entryCounter);
+    
+    entryDiv.innerHTML = `
+        <div class="motorbike-entry-header">
+            <span class="motorbike-entry-title">Motorbike ${entryCounter + 1}</span>
+            <button type="button" class="remove-btn" onclick="removeMotorbikeEntry(${entryCounter})">Remove</button>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="company_${entryCounter}">Company</label>
+                <select id="company_${entryCounter}" name="company[]" class="form-control" required onchange="handleCompanyChange(${entryCounter})">
+                    <option value="">-- Select Company --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="detail_${entryCounter}">Detail</label>
+                <select id="detail_${entryCounter}" name="detail[]" class="form-control" required onchange="handleDetailChange(${entryCounter})">
+                    <option value="">-- Select Detail --</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="persons_${entryCounter}">Persons</label>
+                <input type="number" class="form-control" id="persons_${entryCounter}" name="persons[]" min="1" placeholder="Number of persons" required onchange="calculateTotal()">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="price_${entryCounter}">Price</label>
+                <input type="number" class="form-control" id="price_${entryCounter}" name="price[]" placeholder="Price per person" required readonly>
+            </div>
+        </div>
+    `;
+    
+    entriesContainer.appendChild(entryDiv);
+    populateCompanyOptions(entryCounter);
+    updateRemoveButtons();
+}
+
+function removeMotorbikeEntry(entryId) {
+    const entry = document.querySelector(`[data-entry-id="${entryId}"]`);
+    if (entry) {
+        entry.remove();
+        updateRemoveButtons();
+        updateEntryTitles();
+        calculateTotal();
+    }
+}
+
+function updateRemoveButtons() {
+    const entries = document.querySelectorAll('.motorbike-entry');
+    entries.forEach((entry, index) => {
+        const removeBtn = entry.querySelector('.remove-btn');
+        if (entries.length > 1) {
+            removeBtn.style.display = 'inline-block';
+        } else {
+            removeBtn.style.display = 'none';
+        }
+    });
+}
+
+function updateEntryTitles() {
+    const entries = document.querySelectorAll('.motorbike-entry');
+    entries.forEach((entry, index) => {
+        const title = entry.querySelector('.motorbike-entry-title');
+        title.textContent = `Motorbike ${index + 1}`;
+    });
+}
+
+function calculateTotal() {
+    let total = 0;
+    const entries = document.querySelectorAll('.motorbike-entry');
+    
+    entries.forEach(entry => {
+        const entryId = entry.getAttribute('data-entry-id');
+        const personsInput = document.getElementById(`persons_${entryId}`);
+        const priceInput = document.getElementById(`price_${entryId}`);
+        
+        const persons = parseInt(personsInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        
+        total += persons * price;
+    });
+    
+    const discountInput = document.getElementById('discount');
+    const discountValue = discountInput.value || '';
+    
+    // ใช้ฟังก์ชัน calculateDiscount จาก P1P3_script.js ถ้ามี หรือคำนวณง่ายๆ 
+    let finalTotal = total;
+    if (discountValue) {
+        if (discountValue.includes('%')) {
+            const percentage = parseFloat(discountValue.replace('%', '')) || 0;
+            finalTotal = total - (total * percentage / 100);
+        } else {
+            const discountAmount = parseFloat(discountValue) || 0;
+            finalTotal = total - discountAmount;
+        }
+    }
+    
+    const totalInput = document.getElementById('total');
+    totalInput.value = finalTotal.toFixed(2);
+}
+
+// Form submission handling
+document.getElementById('luxuryBookingForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Collect all motorbike data
+    const entries = document.querySelectorAll('.motorbike-entry');
+    const companies = [];
+    const details = [];
+    const persons = [];
+    const prices = [];
+    
+    entries.forEach(entry => {
+        const entryId = entry.getAttribute('data-entry-id');
+        companies.push(document.getElementById(`company_${entryId}`).value);
+        details.push(document.getElementById(`detail_${entryId}`).value);
+        persons.push(document.getElementById(`persons_${entryId}`).value);
+        prices.push(document.getElementById(`price_${entryId}`).value);
+    });
+    
+    // Create form data
+    const formData = new FormData(this);
+    
+    // Replace array values with comma-separated strings
+    formData.delete('company[]');
+    formData.delete('detail[]');
+    formData.delete('persons[]');
+    formData.delete('price[]');
+    
+    formData.append('company', companies.join(','));
+    formData.append('detail', details.join(','));
+    formData.append('persons', persons.join(','));
+    formData.append('price', prices.join(','));
+    
+    // Submit the form
+    fetch('/submit_motorbike_booking', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof showNotification === 'function') {
+                showNotification('Motorbike booking submitted successfully! Booking Number: ' + data.booking_no, 'success', 5000, true);
+            } else {
+                alert('Motorbike booking submitted successfully! Booking Number: ' + data.booking_no);
+            }
+            this.reset();
+            location.reload();
+        } else {
+            if (typeof showNotification === 'function') {
+                showNotification('Error: ' + data.message, 'error', 5000, true);
+            } else {
+                alert('Error submitting booking: ' + data.message);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (typeof showNotification === 'function') {
+            showNotification('Error submitting booking', 'error', 5000, true);
+        } else {
+            alert('Error submitting booking');
+        }
+    });
+});
+</script>
+<!-- <script src="{{ url_for('static', filename='js/P1P3_script.js') }}"></script> -->
 
 </body>
 </html>

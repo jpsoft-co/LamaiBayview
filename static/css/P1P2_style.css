@@ -282,7 +282,7 @@ body {
 /* -------------------------- */
 
 .booking-table {
-    width: 100%;
+    width: 200%;
     border-collapse: collapse;
     margin-top: 20px;
     background-color: var(--white);

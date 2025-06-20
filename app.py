@@ -673,7 +673,7 @@ def get_booking_details():
         # รับค่า booking_no จากการ request
         booking_no = request.form.get('booking_no')
         
-        # ⚠️ เพิ่มตัวนี้ - รับประเภทจาก form
+        # รับประเภทจาก form
         booking_type = request.form.get('booking_type', 'tour')  # default เป็น tour
         
         if not booking_no:
@@ -683,26 +683,56 @@ def get_booking_details():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # ⚠️ เลือกตารางตามประเภท
+        # ✅ เลือกตารางและ query ตามประเภท
         if booking_type == 'tour':
             main_table = 'tour_rental'
             price_table = 'tour_tabel'
-        else:
+            
+            # ดึงข้อมูลการจองพร้อม JOIN เพื่อดึงราคาต่อคนจากตาราง tour_tabel
+            query = f"""
+            SELECT 
+                mr.*,
+                pt.received as price_per_person
+            FROM {main_table} mr
+            LEFT JOIN {price_table} pt ON mr.detail = pt.detail AND mr.company_name = pt.company_name
+            WHERE mr.booking_no = %s
+            """
+            
+        else:  # motorbike
             main_table = 'motorbike_rental'
-            price_table = 'motorbike_tabel'
-        
-        # ดึงข้อมูลการจองพร้อม JOIN เพื่อดึงราคาต่อคนจากตารางที่เกี่ยวข้อง
-        query = f"""
-        SELECT 
-            mr.*,
-            pt.received as price_per_person
-        FROM {main_table} mr
-        LEFT JOIN {price_table} pt ON mr.detail = pt.detail AND mr.company_name = pt.company_name
-        WHERE mr.booking_no = %s
-        """
+            
+            # ✅ สำหรับ motorbike ไม่ต้อง JOIN เพราะข้อมูล price เก็บไว้ใน motorbike_rental แล้ว
+            query = f"""
+            SELECT 
+                *,
+                CONCAT(customer_name, ' ', customer_surname) AS full_name
+            FROM {main_table}
+            WHERE booking_no = %s
+            """
         
         cursor.execute(query, (booking_no,))
         booking = cursor.fetchone()
+
+        if booking and booking_type == 'motorbike':
+            # ✅ แปลงข้อมูล comma-separated กลับเป็น arrays สำหรับแสดงผล
+            try:
+                if booking.get('company_name'):
+                    booking['company_list'] = [c.strip() for c in booking['company_name'].split(',')]
+                if booking.get('detail'):
+                    booking['detail_list'] = [d.strip() for d in booking['detail'].split(',')]
+                if booking.get('price'):
+                    # ✅ แปลง price string เป็น list
+                    booking['price_list'] = [float(p.strip()) for p in str(booking['price']).split(',')]
+                if booking.get('quantity'):
+                    # ✅ แปลง quantity (รองรับทั้ง "1,2,3" และ "{1,2,3}")
+                    qty_str = str(booking['quantity']).strip()
+                    if qty_str.startswith('{') and qty_str.endswith('}'):
+                        qty_str = qty_str[1:-1]  # เอา { } ออก
+                    booking['quantity_list'] = [int(q.strip()) for q in qty_str.split(',')]
+            except Exception as e:
+                print(f"Error parsing motorbike booking details: {str(e)}")
+                # ถ้าแปลงไม่ได้ ให้ใช้ข้อมูลเดิม
+                pass
         
         cursor.close()
         conn.close()
@@ -711,13 +741,13 @@ def get_booking_details():
             return jsonify({"success": False, "message": "Booking not found"})
         
         # แปลงวันที่และเวลาให้อยู่ในรูปแบบที่เหมาะสม (เหมือนเดิม)
-        if booking['travel_date']:
+        if booking.get('travel_date'):
             booking['travel_date'] = booking['travel_date'].isoformat()
-        if booking['booking_date']:
+        if booking.get('booking_date'):
             booking['booking_date'] = booking['booking_date'].isoformat()
         
         # แปลงเวลา (เหมือนเดิม)
-        if booking['pickup_time']:
+        if booking.get('pickup_time'):
             if hasattr(booking['pickup_time'], 'strftime'):
                 booking['pickup_time'] = booking['pickup_time'].strftime('%H:%M')
             else:
@@ -727,11 +757,11 @@ def get_booking_details():
                 minutes = (total_seconds % 3600) // 60
                 booking['pickup_time'] = f"{hours:02d}:{minutes:02d}"
         
-        # เพิ่มราคาต่อคนที่คำนวณแล้ว
-        if booking['price_per_person']:
+        # เพิ่มราคาต่อคนที่คำนวณแล้ว (สำหรับ tour)
+        if booking_type == 'tour' and booking.get('price_per_person'):
             booking['price_per_person'] = float(booking['price_per_person'])
         
-        # ⚠️ เพิ่ม booking_type กลับไปด้วย
+        # เพิ่ม booking_type กลับไปด้วย
         booking['booking_type'] = booking_type
         
         return jsonify({"success": True, "booking": booking})
@@ -881,18 +911,37 @@ def generate_excel_form():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        table_name = 'tour_rental' if booking_type == 'tour' else 'motorbike_rental'
+        # ✅ เลือก table และ query ตามประเภท
+        if booking_type == 'tour':
+            table_name = 'tour_rental'
+            
+            query = f"""
+            SELECT 
+                booking_no, booking_date, travel_date, pickup_time, 
+                customer_name, customer_surname,
+                CONCAT(customer_name, ' ', customer_surname) AS full_name,
+                room, payment_status, staff_name, received,
+                quantity, detail, payment_method, remark, discount
+            FROM {table_name} 
+            WHERE booking_no = %s
+            """
+            
+        else:  # motorbike
+            table_name = 'motorbike_rental'
+            
+            # ✅ สำหรับ motorbike ต้องดึง company_name และ price ด้วย
+            query = f"""
+            SELECT 
+                booking_no, booking_date, travel_date, pickup_time, 
+                customer_name, customer_surname,
+                CONCAT(customer_name, ' ', customer_surname) AS full_name,
+                room, payment_status, staff_name, received,
+                quantity, detail, payment_method, remark, discount,
+                company_name, price, start_booking_date, end_booking_date
+            FROM {table_name} 
+            WHERE booking_no = %s
+            """
         
-        query = f"""
-        SELECT 
-            booking_no, booking_date, travel_date, pickup_time, 
-            customer_name, customer_surname,
-            CONCAT(customer_name, ' ', customer_surname) AS full_name,
-            room, payment_status, staff_name, received,
-            quantity, detail, payment_method, remark, discount
-        FROM {table_name} 
-        WHERE booking_no = %s
-        """
         cursor.execute(query, (booking_no,))
         booking = cursor.fetchone()
         
@@ -955,16 +1004,20 @@ def cleanup_temp_files():
             except Exception as e:
                 print(f"Error cleaning temp file {filename}: {e}")
 
-def create_excel_form(booking, booking_type='tour'):  # ⚠️ เพิ่ม parameter
+def create_excel_form(booking, booking_type='tour'):  
     """Create Excel form from booking data"""
     # Define template path in static folder
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # ⚠️ เลือก template ตามประเภท (ถ้าต้องการใช้ template แยก)
-    template_filename = 'booking_template.xlsx'  # หรือจะแยกเป็น tour_template.xlsx, motorbike_template.xlsx
+    # ✅ เลือก template ตามประเภท
+    if booking_type == 'motorbike':
+        template_filename = 'motorbike_agreement_template.xlsx'
+    else:
+        template_filename = 'tour_template.xlsx'
+    
     template_path = os.path.join(script_dir, 'static', 'templates', template_filename)
     
-    # ตรวจสอบว่าไฟล์ template มีอยู่จริง (เหมือนเดิม)
+    # ตรวจสอบว่าไฟล์ template มีอยู่จริง
     if not os.path.exists(template_path):
         print(f"Template not found at: {template_path}")
         
@@ -975,9 +1028,20 @@ def create_excel_form(booking, booking_type='tour'):  # ⚠️ เพิ่ม p
         
         raise FileNotFoundError(f"Not found Excel template at: {template_path}")
     
-    # โหลด Excel template (เหมือนเดิม)
+    # โหลด Excel template
     workbook = openpyxl.load_workbook(template_path)
     sheet = workbook.active
+    
+    # ✅ แยก logic ตามประเภท booking
+    if booking_type == 'motorbike':
+        # ✅ สำหรับ Motorbike - รองรับ comma-separated data
+        return create_motorbike_excel_form(booking, workbook, sheet, script_dir)
+    else:
+        # ✅ สำหรับ Tour - ใช้วิธีเดิม
+        return create_tour_excel_form(booking, workbook, sheet, script_dir)
+
+def create_tour_excel_form(booking, workbook, sheet, script_dir):
+    """สร้าง Excel form สำหรับ Tour (วิธีเดิม)"""
     
     # Cell mappings ตามที่กำหนด (เหมือนเดิม)
     cell_mappings = {
@@ -992,7 +1056,8 @@ def create_excel_form(booking, booking_type='tour'):  # ⚠️ เพิ่ม p
         "detail": ["D16", "D43"],
         "price": ["J16", "J43"],
         "payment_method": ["H22", "H49"],
-        "remark": ["D21", "D48"]
+        "remark": ["D21", "D48"],
+        "discount": ["J19", "J46"]
     }
     
     # Formula cells
@@ -1007,7 +1072,7 @@ def create_excel_form(booking, booking_type='tour'):  # ⚠️ เพิ่ม p
         "price": ["J16", "J43"]
     }
     
-    # ใส่ข้อมูลลงในเซลล์ตาม mappings
+    # ใส่ข้อมูลลงในเซลล์ตาม mappings (เหมือนเดิม)
     for field, cells in cell_mappings.items():
         value = None
         
@@ -1051,32 +1116,245 @@ def create_excel_form(booking, booking_type='tour'):  # ⚠️ เพิ่ม p
     for cell, formula in formula_cells.items():
         sheet[cell].value = formula
     
+    # เพิ่มรูปภาพ Tour
+    add_tour_images(sheet, script_dir)
+    
     # สร้างไฟล์ชั่วคราว
     temp_dir = tempfile.gettempdir()
     temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}.xlsx")
+    workbook.save(temp_file)
+    
+    return temp_file
 
+def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
+    """สร้าง Excel form สำหรับ Motorbike แบบแยกบรรทัด"""
+    
+    # ✅ Debug: แสดงข้อมูลที่ได้รับ
+    print(f"=== DEBUG MOTORBIKE BOOKING DATA ===")
+    print(f"Raw booking data: {booking}")
+    print(f"Company: {booking.get('company_name')}")
+    print(f"Detail: {booking.get('detail')}")
+    print(f"Quantity: {booking.get('quantity')}")
+    print(f"Price: {booking.get('price')}")
+    print(f"Received: {booking.get('received')}")
+    print(f"Discount: {booking.get('discount')}")
+    
+    # ✅ ข้อมูลพื้นฐานที่ไม่ต้องแยก
+    # basic_mappings = {
+    #     "booking_date": ["J3", "J32"],
+    #     "booking_no": ["J4", "J33"],
+    #     "customer_name": ["D11", "D40", "G27", "G56"],
+    #     "room": ["D13", "D42"],
+    #     "travel_date": ["F13", "F42"],
+    #     "pickup_time": ["I13", "I42"],
+    #     "payment_status": ["D24", "D53"],
+    #     "staff_name": ["B27", "B56"],
+    #     "payment_method": ["H24", "H53"],
+    #     "remark": ["D23", "D52"]
+    # }
+    basic_mappings = {
+        "booking_date": ["I4", "I29"],
+        "booking_no": ["I6", "I30", "T10", "AE10"],
+        "customer_name": ["C11", "H24", "C35", "H48", "N12", "Y12"],
+        "room": ["C12", "C36"],
+        "travel_date": ["E12", "E36"],
+        "pickup_time": ["H12", "H36", "P13", "P14", "AA13", "AA14"],
+        "payment_status": ["C20", "C44"],
+        "staff_name": ["B24", "B48"],
+        "payment_method": ["D21", "D45"],
+        "remark": ["G21", "G45"],
+        "start_booking_date": ["N13", "Y13"],
+        "end_booking_date": ["N14", "Y14"],
+    }
+    # ใส่ข้อมูลพื้นฐาน
+    for field, cells in basic_mappings.items():
+        value = None
+        
+        if field == "customer_name":
+            value = booking.get("full_name", "")
+        elif field in booking and booking[field] is not None:
+            value = booking[field]
+        
+        # จัดรูปแบบวันที่และเวลา
+        if field == "booking_date" or field == "travel_date":
+            if value:
+                if isinstance(value, (date, datetime)):
+                    value = value.strftime("%d/%m/%Y")
+        elif field == "pickup_time" and value:
+            if isinstance(value, (time, datetime)):
+                value = value.strftime("%H:%M")
+            elif hasattr(value, 'total_seconds'):
+                total_seconds = int(value.total_seconds())
+                hours = total_seconds // 3600
+                minutes = (total_seconds % 3600) // 60
+                value = f"{hours:02d}:{minutes:02d}"
+            
+        if value is not None:
+            for cell in cells:
+                sheet[cell] = value
+    
+    # ✅ แยกข้อมูล comma-separated สำหรับ motorbike (แบบง่าย)
+    companies = []
+    details = []
+    prices = []
+    quantities = []
+    
+    try:
+        # ✅ แปลง company_name
+        if booking.get('company_name'):
+            company_data = str(booking['company_name']).strip()
+            if company_data:
+                companies = [c.strip() for c in company_data.split(',') if c.strip()]
+        
+        # ✅ แปลง detail
+        if booking.get('detail'):
+            detail_data = str(booking['detail']).strip()
+            if detail_data:
+                details = [d.strip() for d in detail_data.split(',') if d.strip()]
+        
+        # ✅ แปลง price - ง่ายๆ
+        if booking.get('price'):
+            price_data = str(booking['price']).strip()
+            if price_data:
+                prices = [float(p.strip()) for p in price_data.split(',') if p.strip()]
+        
+        # ✅ แปลง quantity - รองรับทั้ง {1,2,3} และ 1,2,3
+        if booking.get('quantity'):
+            qty_data = str(booking['quantity']).strip()
+            if qty_data:
+                # ลบ { } ถ้ามี
+                if qty_data.startswith('{') and qty_data.endswith('}'):
+                    qty_data = qty_data[1:-1]
+                
+                quantities = [int(q.strip()) for q in qty_data.split(',') if q.strip()]
+        
+        # ✅ Debug: แสดงผลการแปลง
+        print(f"Parsed companies: {companies}")
+        print(f"Parsed details: {details}")
+        print(f"Parsed prices: {prices}")
+        print(f"Parsed quantities: {quantities}")
+        
+    except Exception as e:
+        print(f"Error parsing motorbike data: {str(e)}")
+        # ถ้า error ให้ใช้ข้อมูลเปล่า
+        companies = ["Error parsing"]
+        details = ["Error parsing"]
+        prices = [0]
+        quantities = [0]
+    
+    # ✅ ใส่ข้อมูลลงในเซลล์แบบแยกบรรทัด (แบบง่าย)
+    try:
+        # หน้าแรก: เริ่ม row 16
+        row = 14
+        for i in range(len(companies)):
+            if i < len(companies):
+                sheet[f"C{row}"] = companies[i]
+                print(f"Set C{row} = {companies[i]}")
+            
+            if i < len(details):
+                sheet[f"E{row}"] = details[i]
+                print(f"Set E{row} = {details[i]}")
+            
+            if i < len(prices):
+                sheet[f"G{row}"] = prices[i]
+                print(f"Set G{row} = {prices[i]}")
+            
+            if i < len(quantities):
+                sheet[f"I{row}"] = quantities[i]
+                print(f"Set I{row} = {quantities[i]}")
+            
+            # Sub-total
+            sheet[f"J{row}"].value = f"=G{row}*I{row}"
+            print(f"Set J{row} = =G{row}*I{row}")
+            
+            row += 1
+            
+            # จำกัดไม่เกิน 5 บรรทัด
+            if row > 20:
+                break
+        
+        # หน้าสอง: เริ่ม row 43 (ข้อมูลเดียวกัน)
+        row = 38
+        for i in range(len(companies)):
+            if i < len(companies):
+                sheet[f"C{row}"] = companies[i]
+            
+            if i < len(details):
+                sheet[f"E{row}"] = details[i]
+            
+            if i < len(prices):
+                sheet[f"G{row}"] = prices[i]
+            
+            if i < len(quantities):
+                sheet[f"I{row}"] = quantities[i]
+            
+            # Sub-total
+            sheet[f"J{row}"].value = f"=G{row}*I{row}"
+            
+            row += 1
+            
+            # จำกัดไม่เกิน 5 บรรทัด
+            if row > 47:
+                break
+                
+    except Exception as e:
+        print(f"Error setting motorbike data in cells: {str(e)}")
+    
+    # ✅ ใส่ discount และ received
+    try:
+        # Discount
+        if booking.get('discount'):
+            discount_val = booking['discount']
+            if discount_val and str(discount_val).strip() not in ['', '0']:
+                sheet["J19"] = f"-{discount_val}"
+                sheet["J43"] = f"-{discount_val}"
+                print(f"Set discount: -{discount_val}")
+        
+        # Received
+        if booking.get('received'):
+            sheet["J20"] = booking['received']
+            sheet["J44"] = booking['received']
+            print(f"Set received: {booking['received']}")
+    
+    except Exception as e:
+        print(f"Error setting discount/received: {str(e)}")
+    
+    # เพิ่มรูปภาพ Motorbike
+    add_motorbike_images(sheet, script_dir)
+    
+    # สร้างไฟล์ชั่วคราว
+    temp_dir = tempfile.gettempdir()
+    temp_file = os.path.join(temp_dir, f"{uuid.uuid4()}.xlsx")
+    workbook.save(temp_file)
+    
+    print(f"=== DEBUG: Excel file saved to {temp_file} ===")
+    
+    return temp_file
+
+def add_tour_images(sheet, script_dir):
+    """เพิ่มรูปภาพสำหรับ Tour"""
     logo_path = os.path.join(script_dir, 'static', 'images', 'logoexcel.png')
     
     if os.path.exists(logo_path):
         try:
             # เพิ่มโลโก้ที่ A1 (หน้าแรก)
             img1 = Image(logo_path)
-            img1.width = 100   # ปรับขนาดตามต้องการ
+            img1.width = 100
             img1.height = 80
             img1.anchor = 'B1'
             sheet.add_image(img1)
             
-            # เพิ่มโลโก้ที่ A46 (หน้าที่สอง - ถ้ามี)
+            # เพิ่มโลโก้ที่ A46 (หน้าที่สอง)
             img2 = Image(logo_path)
             img2.width = 100
             img2.height = 80
             img2.anchor = 'B28'
             sheet.add_image(img2)
-            print(f"Tour/Motorbike logo added successfully")
+            print(f"Tour logo added successfully")
         except Exception as e:
-            print(f"Error adding tour/motorbike logo: {str(e)}")
+            print(f"Error adding tour logo: {str(e)}")
     
-    # เพิ่มรูปอื่นๆ สำหรับ Tour/Motorbike
+    # เพิ่มรูปอื่นๆ สำหรับ Tour
     additional_images = [
         {'path': os.path.join(script_dir, 'static', 'images', 'signature.png'), 'anchor': 'H25'},
     ]
@@ -1089,14 +1367,64 @@ def create_excel_form(booking, booking_type='tour'):  # ⚠️ เพิ่ม p
                 img.height = 40
                 img.anchor = img_info['anchor']
                 sheet.add_image(img)
-                print(f"Tour/Motorbike additional image added")
+                print(f"Tour additional image added")
             except Exception as e:
-                print(f"Error adding tour/motorbike image: {str(e)}")
+                print(f"Error adding tour image: {str(e)}")
+
+def add_motorbike_images(sheet, script_dir):
+    """เพิ่มรูปภาพสำหรับ Motorbike"""
+    logo_path = os.path.join(script_dir, 'static', 'images', 'logoexcel.png')
     
-    # บันทึก workbook ไปยังไฟล์ชั่วคราว
-    workbook.save(temp_file)
+    if os.path.exists(logo_path):
+        try:
+            # เพิ่มโลโก้ที่ (หน้าแรก)
+            img1 = Image(logo_path)
+            img1.width = 100
+            img1.height = 80
+            img1.anchor = 'B2'
+            sheet.add_image(img1)
+            
+            # เพิ่มโลโก้ที่ (หน้าที่สอง)
+            img2 = Image(logo_path)
+            img2.width = 100
+            img2.height = 80
+            img2.anchor = 'B27'
+            sheet.add_image(img2)
+
+            # เพิ่มโลโก้ที่ (หน้าที่สาม)
+            img3 = Image(logo_path)
+            img3.width = 100
+            img3.height = 80
+            img3.anchor = 'M2'
+            sheet.add_image(img3)
+
+            # เพิ่มโลโก้ที่ (หน้าที่สี่)
+            img4 = Image(logo_path)
+            img4.width = 100
+            img4.height = 80
+            img4.anchor = 'X2'
+            sheet.add_image(img4)
+
+            print(f"Motorbike logo added successfully")
+        except Exception as e:
+            print(f"Error adding motorbike logo: {str(e)}")
     
-    return temp_file
+    # เพิ่มรูปอื่นๆ สำหรับ Motorbike
+    additional_images = [
+        {'path': os.path.join(script_dir, 'static', 'images', 'signature.png'), 'anchor': 'H25'},
+    ]
+    
+    for img_info in additional_images:
+        if os.path.exists(img_info['path']):
+            try:
+                img = Image(img_info['path'])
+                img.width = 80
+                img.height = 40
+                img.anchor = img_info['anchor']
+                sheet.add_image(img)
+                print(f"Motorbike additional image added")
+            except Exception as e:
+                print(f"Error adding motorbike image: {str(e)}")
 
 @app.route("/export_tour", methods=["POST"])
 @login_required
@@ -1395,7 +1723,6 @@ def submit_motorbike_booking():
         else:
             running_number = 1
         
-        
         max_attempts = 1000
         booking_no = None
         
@@ -1415,51 +1742,100 @@ def submit_motorbike_booking():
         if not booking_no:
             return jsonify({"success": False, "message": "Unable to generate unique booking number"})
 
-        # Get form data (เหมือนเดิม)
+        # Get form data
         customer_name = request.form.get('name', '')
         customer_surname = request.form.get('surname', '')
         room = request.form.get('room', '')
-        # ⚠️ ไม่ต้องดึง experience_type แล้ว
-        company_name = request.form.get('company', '')
-        detail = request.form.get('detail', '')
         pickup_time = request.form.get('time', '')
         travel_date = request.form.get('searchDate', '')
-        quantity = request.form.get('persons', '0')
-        price_per_person = request.form.get('price', '0')
         payment_status = request.form.get('status', '')
         staff_name = request.form.get('staffName', '')
         start_booking_date = request.form.get('searchDate', '')
         end_booking_date = request.form.get('searchDateTo', '')
-        payment_method = request.form.get('paymentmethod', '') # อย่าลืมใส่ variable = paymentmethod ตัวนี้ใน tour_rental และ tour_transfer
-        remark = request.form.get('remark', '') # อย่าลืมใส่ variable = remark ตัวนี้ใน tour_rental และ tour_transfer
+        payment_method = request.form.get('paymentmethod', '')
+        remark = request.form.get('remark', '')
         discount = request.form.get('discount', '')
         
-        # Calculate total received
-        received = float(price_per_person) * int(quantity) if price_per_person and quantity else 0
-        booking_date = request.form.get('searchDate', '')
+        # **ใหม่: รับข้อมูล motorbike แบบ comma-separated**
+        companies = request.form.get('company', '')  # comma-separated
+        details = request.form.get('detail', '')     # comma-separated
+        persons_str = request.form.get('persons', '') # comma-separated
+        prices_str = request.form.get('price', '')   # comma-separated
         
-        # Validate required fields (ลบ experience_type ออก)
-        if not all([customer_name, customer_surname, room, 
-                   company_name, detail, pickup_time, travel_date, 
-                   quantity, price_per_person, payment_status, staff_name, payment_method]):
+        # **ใหม่: ตรวจสอบและแปลงข้อมูล**
+        if not all([companies, details, persons_str, prices_str]):
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "message": "Missing motorbike data"})
+        
+        try:
+            # แปลง comma-separated strings เป็น lists
+            company_list = [c.strip() for c in companies.split(',') if c.strip()]
+            detail_list = [d.strip() for d in details.split(',') if d.strip()]
+            persons_list = [int(p.strip()) for p in persons_str.split(',') if p.strip()]
+            prices_list = [float(p.strip()) for p in prices_str.split(',') if p.strip()]
+            
+            # ตรวจสอบความยาวของ lists ต้องเท่ากัน
+            if not (len(company_list) == len(detail_list) == len(persons_list) == len(prices_list)):
+                raise ValueError("Motorbike data arrays length mismatch")
+            
+            # คำนวณยอดรวม
+            subtotal = sum(persons_list[i] * prices_list[i] for i in range(len(company_list)))
+            
+            # คำนวณส่วนลด
+            discount_amount = 0
+            if discount:
+                discount = discount.strip()
+                if discount.endswith('%'):
+                    # เปอร์เซ็นต์
+                    percentage = float(discount.replace('%', ''))
+                    discount_amount = subtotal * (percentage / 100)
+                else:
+                    # จำนวนเงิน
+                    discount_amount = float(discount)
+            
+            # ยอดสุทธิ
+            received = subtotal - discount_amount
+            
+            # ✅ เก็บ persons รวม (สำหรับ quantity field) แบบ comma-separated string
+            total_quantity = sum(persons_list)
+            quantity_str = persons_str  # เก็บเป็น "1,2,3" แทน {1,2,3}
+            
+        except (ValueError, TypeError) as e:
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "message": f"Invalid motorbike data format: {str(e)}"})
+        
+        booking_date = date.today().isoformat()
+        
+        # Validate required fields
+        if not all([customer_name, customer_surname, room, pickup_time, travel_date, 
+                   payment_status, staff_name, payment_method]):
             cursor.close()
             conn.close()
             return jsonify({"success": False, "message": "Please fill in all required fields"})
         
+        # ✅ **แก้ไข: บันทึกข้อมูลแบบ comma-separated string**
         query = """
         INSERT INTO motorbike_rental (
             travel_date, pickup_time, booking_date, booking_no, 
             customer_name, customer_surname, room, company_name, 
             detail, quantity, received, payment_status, 
-            staff_name, start_booking_date, end_booking_date, payment_method, remark, discount
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            staff_name, start_booking_date, end_booking_date, 
+            payment_method, remark, discount, price
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
         values = (
             travel_date, pickup_time, booking_date, booking_no,
-            customer_name, customer_surname, room, company_name,
-            detail, quantity, received, payment_status,
-            staff_name, start_booking_date, end_booking_date, payment_method, remark, discount
+            customer_name, customer_surname, room, 
+            companies,      # comma-separated companies: "Company A,Company B"
+            details,        # comma-separated details: "Detail A,Detail B"
+            quantity_str,   # ✅ comma-separated quantities: "1,2,3" (ไม่ใช่ {1,2,3})
+            received,       # total amount after discount
+            payment_status, staff_name, start_booking_date, end_booking_date, 
+            payment_method, remark, discount, 
+            prices_str      # comma-separated prices: "100.0,200.0"
         )
         
         cursor.execute(query, values)
@@ -1472,7 +1848,8 @@ def submit_motorbike_booking():
             "success": True, 
             "message": "Motorbike booking successfully submitted", 
             "booking_no": booking_no,
-            "total_amount": received
+            "total_amount": received,
+            "items_count": len(company_list)
         })
     
     except Exception as e:
@@ -1485,7 +1862,7 @@ def submit_motorbike_booking():
             pass
         
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
-
+    
 @app.route("/motorbike_rental_form")
 @login_required
 def view_motorbike_bookings():
@@ -1512,6 +1889,28 @@ def view_motorbike_bookings():
         
         # แปลงรูปแบบวันที่และเวลา (เหมือนเดิม)
         for booking in bookings:
+            try:
+                if booking['company_name'] and ',' in booking['company_name']:
+                    companies = booking['company_name'].split(',')
+                    details = booking['detail'].split(',') if booking['detail'] else []
+                    prices = booking['price'].split(',') if booking['price'] else []
+                    
+                    # สร้างข้อความแสดงรายการ
+                    items = []
+                    for i, company in enumerate(companies):
+                        detail = details[i] if i < len(details) else ''
+                        price = prices[i] if i < len(prices) else ''
+                        items.append(f"{company.strip()}-{detail.strip()}")
+                    
+                    booking['company_display'] = ' | '.join(items)
+                    booking['detail_display'] = f"{len(companies)} items"
+                else:
+                    booking['company_display'] = booking['company_name']
+                    booking['detail_display'] = booking['detail']
+            except:
+                booking['company_display'] = booking['company_name']
+                booking['detail_display'] = booking['detail']
+
             if booking['travel_date']:
                 booking['travel_date'] = booking['travel_date'].strftime('%d/%m/%Y')
             if booking['booking_date']:
@@ -1520,6 +1919,7 @@ def view_motorbike_bookings():
                 booking['start_booking_date'] = booking['start_booking_date'].strftime('%d/%m/%Y')
             if booking['end_booking_date'] and booking['end_booking_date']:
                 booking['end_booking_date'] = booking['end_booking_date'].strftime('%d/%m/%Y')
+            
             
             # แปลงเวลา
             if booking['pickup_time']:
@@ -3047,28 +3447,47 @@ def update_tour_data():
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
 
 # API สำหรับ Motorbike Data
-@app.route("/api/motorbike_data", methods=["GET"])
+@app.route("/get_motorbike_data", methods=["GET"])
 @login_required
 def get_motorbike_data():
-
-    
-    if session.get('role') != 'admin':
-        return jsonify({"success": False, "message": "Access Denied: Admin only"})
-
+    """API endpoint สำหรับดึงข้อมูล motorbike companies และ details"""
     try:
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        query = "SELECT * FROM motorbike_tabel ORDER BY id"
+        # ดึงข้อมูลทั้งหมดจาก motorbike_tabel
+        query = "SELECT company_name, detail, received, paid FROM motorbike_tabel ORDER BY company_name, detail"
         cursor.execute(query)
         data = cursor.fetchall()
         
         cursor.close()
         conn.close()
         
-        return jsonify({"success": True, "data": data})
+        # จัดระเบียบข้อมูลตาม company
+        organized_data = {}
+        for item in data:
+            company = item['company_name']
+            if company not in organized_data:
+                organized_data[company] = {}
+            
+            organized_data[company][item['detail']] = {
+                'price': float(item['received']) if item['received'] else 0,
+                'paid': float(item['paid']) if item['paid'] else 0
+            }
+        
+        return jsonify({
+            "success": True, 
+            "data": organized_data,
+            "companies": list(organized_data.keys())
+        })
+        
     except Exception as e:
-        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+        return jsonify({
+            "success": False, 
+            "message": f"Error: {str(e)}",
+            "data": {},
+            "companies": []
+        })
 
 @app.route("/api/update_motorbike_data", methods=["POST"])
 @login_required
