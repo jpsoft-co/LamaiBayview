@@ -302,6 +302,7 @@ function handleEditDetailChange() {
 }
 
 // ฟังก์ชันคำนวณยอดรวมใน Edit Modal
+// ฟังก์ชันคำนวณยอดรวมใน Edit Modal (Version สมบูรณ์)
 function calculateEditTotal() {
     const priceInput = document.getElementById('edit_price');
     const personsInput = document.getElementById('edit_persons');
@@ -331,7 +332,7 @@ function calculateEditTotal() {
         }
     }
     
-    // อัพเดต display ถ้ามี element สำหรับแสดงผล
+    // อัพเดต total display
     const totalDisplay = document.getElementById('edit_total');
     if (totalDisplay) {
         totalDisplay.value = discountResult.finalTotal.toFixed(2);

@@ -363,8 +363,9 @@ def submit_tour_booking():
         remark = request.form.get('remark', '') # อย่าลืมใส่ variable = remark ตัวนี้ใน tour_rental และ tour_transfer
         discount = request.form.get('discount', '')
         
-        # Calculate total received
-        received = float(price_per_person) * int(quantity) if price_per_person and quantity else 0
+        # Calculate total receivedtotal
+        received = float(request.form.get('total', ''))
+        # received = float(price_per_person) * int(quantity) if price_per_person and quantity else 0
         booking_date = date.today().isoformat()
         
         # Validate required fields (ลบ experience_type ออก)
@@ -381,15 +382,15 @@ def submit_tour_booking():
             travel_date, pickup_time, booking_date, booking_no, 
             customer_name, customer_surname, room, company_name, 
             detail, quantity, received, payment_status, 
-            staff_name, payment_method, remark, discount
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            staff_name, payment_method, remark, discount, price
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         
         values = (
             travel_date, pickup_time, booking_date, booking_no,
             customer_name, customer_surname, room, company_name,
             detail, quantity, received, payment_status,
-            staff_name, payment_method, remark, discount
+            staff_name, payment_method, remark, discount, price_per_person
         )
         
         cursor.execute(query, values)
@@ -517,8 +518,8 @@ def search_tour_bookings():
         
         if request.method == "POST":
             # รับค่าจากฟอร์มค้นหา
-            start_date = request.form.get('travel_date', '')
-            end_date = request.form.get('travel_date', '')
+            start_date = request.form.get('start_date', '')
+            end_date = request.form.get('end_date', '')
             booking_no = request.form.get('booking_no', '')
             name_surname = request.form.get('name_surname', '')
             
@@ -541,7 +542,7 @@ def search_tour_bookings():
                 quantity, 
                 received, 
                 payment_status,
-                payment_medthod, 
+                payment_method, 
                 staff_name,
                 remark,
                 discount
@@ -799,7 +800,8 @@ def update_booking():
             return jsonify({"success": False, "message": "Booking number is required"})
         
         # คำนวณ received ใหม่
-        received = float(price_per_person) * int(quantity) if price_per_person and quantity else 0
+        received = float(request.form.get('total', ''))
+        # received = float(price_per_person) * int(quantity) if price_per_person and quantity else 0
         
         # เชื่อมต่อกับฐานข้อมูล
         conn = get_db_connection()
@@ -824,14 +826,15 @@ def update_booking():
             payment_method = %s,
             staff_name = %s,
             remark = %s,
-            discount = %s
+            discount = %s,
+            price = %s
         WHERE booking_no = %s
         """
         
         values = (
             travel_date, pickup_time, customer_name, customer_surname,
             room, company_name, detail, quantity, received,
-            payment_status, payment_method, staff_name, remark, discount, booking_no
+            payment_status, payment_method, staff_name, remark, discount, price_per_person, booking_no
         )
         
         cursor.execute(query, values)
@@ -921,7 +924,7 @@ def generate_excel_form():
                 customer_name, customer_surname,
                 CONCAT(customer_name, ' ', customer_surname) AS full_name,
                 room, payment_status, staff_name, received,
-                quantity, detail, payment_method, remark, discount
+                quantity, detail, payment_method, remark, discount, price
             FROM {table_name} 
             WHERE booking_no = %s
             """
@@ -1054,22 +1057,23 @@ def create_tour_excel_form(booking, workbook, sheet, script_dir):
         "payment_status": ["D22", "D49"],
         "staff_name": ["B25", "B52"],
         "detail": ["D16", "D43"],
-        "price": ["J16", "J43"],
+        "price": ["H16", "H43"],
         "payment_method": ["H22", "H49"],
         "remark": ["D21", "D48"],
-        "discount": ["J19", "J46"]
+        "discount": ["J19", "J46"],
+        "received": ["J20", "J47"]
     }
     
     # Formula cells
     formula_cells = {
-        "H16": "=J16/I16",  # Total = Price * Quantity for first section
-        "H43": "=J43/I43"   # Total = Price * Quantity for second section
+        "J16": "=H16*I16",  # Total = Price * Quantity for first section
+        "J43": "=H43*I43"   # Total = Price * Quantity for second section
     }
     
     # Value mappings
     value_mappings = {
         "quantity": ["I16", "I43"],  # Number of people
-        "price": ["J16", "J43"]
+        "price": ["H16", "H43"]
     }
     
     # ใส่ข้อมูลลงในเซลล์ตาม mappings (เหมือนเดิม)
@@ -1106,10 +1110,13 @@ def create_tour_excel_form(booking, workbook, sheet, script_dir):
     if "quantity" in booking and booking["quantity"] is not None:
         for cell in value_mappings["quantity"]:
             sheet[cell] = booking["quantity"]
+
+    if "price" in booking and booking["price"] is not None:
+        for cell in value_mappings["price"]:
+            sheet[cell] = booking["price"]
     
     # ใส่ข้อมูลราคา
     if "received" in booking and booking["received"] is not None:
-        for cell in value_mappings["price"]:
             sheet[cell] = booking["received"]
     
     # ใส่สูตรคำนวณ
@@ -1128,17 +1135,7 @@ def create_tour_excel_form(booking, workbook, sheet, script_dir):
 
 def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
     """สร้าง Excel form สำหรับ Motorbike แบบแยกบรรทัด"""
-    
-    # ✅ Debug: แสดงข้อมูลที่ได้รับ
-    print(f"=== DEBUG MOTORBIKE BOOKING DATA ===")
-    print(f"Raw booking data: {booking}")
-    print(f"Company: {booking.get('company_name')}")
-    print(f"Detail: {booking.get('detail')}")
-    print(f"Quantity: {booking.get('quantity')}")
-    print(f"Price: {booking.get('price')}")
-    print(f"Received: {booking.get('received')}")
-    print(f"Discount: {booking.get('discount')}")
-    
+     
     # ✅ ข้อมูลพื้นฐานที่ไม่ต้องแยก
     # basic_mappings = {
     #     "booking_date": ["J3", "J32"],
@@ -1447,6 +1444,7 @@ def export_tour():
             tr.staff_name,
             tr.quantity, 
             tr.received,
+            tr.price,
             tr.payment_status,
             tr.payment_method,
             tr.pickup_time,
@@ -1468,11 +1466,11 @@ def export_tour():
             end_date = request.form.get('end_date', '')
             
             if start_date:
-                query += " AND tr.booking_date >= %s"
+                query += " AND tr.travel_date >= %s"
                 params.append(start_date)
             
             if end_date:
-                query += " AND tr.booking_date <= %s"
+                query += " AND tr.travel_date  <= %s"
                 params.append(end_date)
                 
         elif filter_type == 'month':
@@ -1481,7 +1479,7 @@ def export_tour():
             
             if start_month:
                 start_date = f"{start_month}-01"
-                query += " AND tr.booking_date >= %s"
+                query += " AND tr.travel_date  >= %s"
                 params.append(start_date)
             
             if end_month:
@@ -1494,7 +1492,7 @@ def export_tour():
                     next_month = month + 1
                 
                 end_date = f"{next_year}-{next_month:02d}-01"
-                query += " AND tr.booking_date < %s"
+                query += " AND tr.travel_date  < %s"
                 params.append(end_date)
                 
         elif filter_type == 'year':
@@ -1503,12 +1501,12 @@ def export_tour():
             
             if start_year:
                 start_date = f"{start_year}-01-01"
-                query += " AND tr.booking_date >= %s"
+                query += " AND tr.travel_date  >= %s"
                 params.append(start_date)
             
             if end_year:
                 end_date = f"{int(end_year) + 1}-01-01"
-                query += " AND tr.booking_date < %s"
+                query += " AND tr.travel_date  < %s"
                 params.append(end_date)
         
         # ⚠️ ลบ experience_type filter ออก
@@ -1595,7 +1593,7 @@ def export_tour():
                 booking['company_name'],         # Company Name
                 booking['detail'],               # Detail
                 booking['quantity'],             # Quantity
-                round(price_per_person, 2),      # Price / Person
+                booking['price'],      # Price / Person
                 booking['received'],             # Received
                 paid_amount,                     # Paid
                 round(amount, 2),                # Amount
