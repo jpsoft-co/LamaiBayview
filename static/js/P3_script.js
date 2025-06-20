@@ -1,10 +1,11 @@
-// P1_script.js - Tour Booking JavaScript
+// P3_script.js - Motorbike Booking JavaScript
 // ===============================================
-// TOUR BOOKING JAVASCRIPT
+// MOTORBIKE BOOKING JAVASCRIPT
 // ===============================================
 
-// Global variables for tour
-window.tourCompanies = [];
+// Global variables for motorbike
+let entryCounter = 0;
+window.motorbikeCompanies = [];
 
 // ===============================================
 // ENHANCED DISCOUNT CALCULATION FUNCTIONS
@@ -132,62 +133,69 @@ function validateDiscountInput(inputElement) {
 }
 
 // ===============================================
-// MAIN FORM FUNCTIONS (สำหรับหน้า form)
+// MOTORBIKE SPECIFIC FUNCTIONS
 // ===============================================
 
-// ฟังก์ชันสำหรับจัดการการเปลี่ยน Company
-function handleCompanyChange() {
-    const companyName = document.getElementById('company').value;
-    const detailSelect = document.getElementById('detail');
-    const priceInput = document.getElementById('price');
+
+
+function populateCompanyOptions(entryId) {
+    const companySelect = document.getElementById(`company_${entryId}`);
+    if (!companySelect) return;
     
-    if (!detailSelect || !priceInput) return;
+    companySelect.innerHTML = '<option value="">-- Select Company --</option>';
     
-    // Clear detail dropdown and price
+    window.motorbikeCompanies.forEach(company => {
+        const option = document.createElement('option');
+        option.value = company;
+        option.textContent = company;
+        companySelect.appendChild(option);
+    });
+}
+
+function handleCompanyChange(entryId) {
+    const companySelect = document.getElementById(`company_${entryId}`);
+    const detailSelect = document.getElementById(`detail_${entryId}`);
+    const priceInput = document.getElementById(`price_${entryId}`);
+    
+    const selectedCompany = companySelect.value;
+    
+    // Clear detail and price
     detailSelect.innerHTML = '<option value="">-- Select Detail --</option>';
     priceInput.value = '';
     
-    if (!companyName) {
-        calculateTotal();
-        return;
+    if (selectedCompany) {
+        // Fetch details for selected company
+        const formData = new FormData();
+        formData.append('experience_type', 'motorbike');
+        formData.append('company_name', selectedCompany);
+        
+        fetch('/get_company_details', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                data.details.forEach(detailData => {
+                    const option = document.createElement('option');
+                    option.value = detailData.detail;
+                    option.textContent = detailData.detail;
+                    option.dataset.price = detailData.received;
+                    detailSelect.appendChild(option);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
     }
-    
-    // Fetch details for selected company
-    const formData = new FormData();
-    formData.append('experience_type', 'tour');
-    formData.append('company_name', companyName);
-    
-    fetch('/get_company_details', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            data.details.forEach(detailData => {
-                const option = document.createElement('option');
-                option.value = detailData.detail;
-                option.textContent = detailData.detail;
-                option.dataset.price = detailData.received;
-                detailSelect.appendChild(option);
-            });
-        } else {
-            console.error('Error loading details:', data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-    });
     
     calculateTotal();
 }
 
-// ฟังก์ชันสำหรับจัดการการเปลี่ยน Detail
-function handleDetailChange() {
-    const detailSelect = document.getElementById('detail');
-    const priceInput = document.getElementById('price');
-    
-    if (!detailSelect || !priceInput) return;
+function handleDetailChange(entryId) {
+    const detailSelect = document.getElementById(`detail_${entryId}`);
+    const priceInput = document.getElementById(`price_${entryId}`);
     
     if (detailSelect.selectedIndex > 0) {
         const selectedOption = detailSelect.options[detailSelect.selectedIndex];
@@ -200,37 +208,113 @@ function handleDetailChange() {
     calculateTotal();
 }
 
-// ฟังก์ชันคำนวณยอดรวมในหน้าหลัก (Main Form)
+function addMotorbikeEntry() {
+    entryCounter++;
+    const entriesContainer = document.getElementById('motorbikeEntries');
+    
+    const entryDiv = document.createElement('div');
+    entryDiv.className = 'motorbike-entry';
+    entryDiv.setAttribute('data-entry-id', entryCounter);
+    
+    entryDiv.innerHTML = `
+        <div class="motorbike-entry-header">
+            <span class="motorbike-entry-title">Motorbike ${entryCounter + 1}</span>
+            <button type="button" class="remove-btn" onclick="removeMotorbikeEntry(${entryCounter})">Remove</button>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="company_${entryCounter}">Company</label>
+                <select id="company_${entryCounter}" name="company[]" class="form-control" required onchange="handleCompanyChange(${entryCounter})">
+                    <option value="">-- Select Company --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="detail_${entryCounter}">Detail</label>
+                <select id="detail_${entryCounter}" name="detail[]" class="form-control" required onchange="handleDetailChange(${entryCounter})">
+                    <option value="">-- Select Detail --</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label" for="persons_${entryCounter}">Persons</label>
+                <input type="number" class="form-control" id="persons_${entryCounter}" name="persons[]" min="1" placeholder="Number of persons" required onchange="calculateTotal()">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="price_${entryCounter}">Price</label>
+                <input type="number" class="form-control" id="price_${entryCounter}" name="price[]" placeholder="Price per person" required readonly>
+            </div>
+        </div>
+    `;
+    
+    entriesContainer.appendChild(entryDiv);
+    populateCompanyOptions(entryCounter);
+    updateRemoveButtons();
+}
+
+function removeMotorbikeEntry(entryId) {
+    const entry = document.querySelector(`[data-entry-id="${entryId}"]`);
+    if (entry) {
+        entry.remove();
+        updateRemoveButtons();
+        updateEntryTitles();
+        calculateTotal();
+    }
+}
+
+function updateRemoveButtons() {
+    const entries = document.querySelectorAll('.motorbike-entry');
+    entries.forEach((entry, index) => {
+        const removeBtn = entry.querySelector('.remove-btn');
+        if (entries.length > 1) {
+            removeBtn.style.display = 'inline-block';
+        } else {
+            removeBtn.style.display = 'none';
+        }
+    });
+}
+
+function updateEntryTitles() {
+    const entries = document.querySelectorAll('.motorbike-entry');
+    entries.forEach((entry, index) => {
+        const title = entry.querySelector('.motorbike-entry-title');
+        title.textContent = `Motorbike ${index + 1}`;
+    });
+}
+
 function calculateTotal() {
-    const priceInput = document.getElementById('price');
-    const personsInput = document.getElementById('persons');
+    let total = 0;
+    const entries = document.querySelectorAll('.motorbike-entry');
+    
+    entries.forEach(entry => {
+        const entryId = entry.getAttribute('data-entry-id');
+        const personsInput = document.getElementById(`persons_${entryId}`);
+        const priceInput = document.getElementById(`price_${entryId}`);
+        
+        const persons = parseInt(personsInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        
+        total += persons * price;
+    });
+    
     const discountInput = document.getElementById('discount');
-    const totalInput = document.getElementById('total');
-    
-    if (!priceInput || !personsInput || !totalInput) return;
-    
-    const price = parseFloat(priceInput.value) || 0;
-    const persons = parseInt(personsInput.value) || 0;
     const discountValue = discountInput ? discountInput.value : '';
     
-    // คำนวณยอดรวมก่อนหักส่วนลด
-    const subtotal = price * persons;
-    
     // คำนวณส่วนลด
-    const discountResult = calculateDiscount(discountValue, subtotal);
+    const discountResult = calculateDiscount(discountValue, total);
     
-    // แสดงผลลัพธ์
-    totalInput.value = discountResult.finalTotal.toFixed(2);
+    const totalInput = document.getElementById('total');
+    if (totalInput) {
+        totalInput.value = discountResult.finalTotal.toFixed(2);
+    }
     
     // แสดงข้อผิดพลาดหากมี
     if (discountResult.error) {
         showAlert(discountResult.error, 'warning');
-        // รีเซ็ตค่า discount หากไม่ถูกต้อง
         if (discountInput) {
             discountInput.style.borderColor = 'red';
         }
     } else {
-        // ล้าง error state
         if (discountInput) {
             discountInput.style.borderColor = discountValue ? 'green' : '';
         }
@@ -257,7 +341,7 @@ function handleEditCompanyChange() {
     
     // Fetch details for selected company
     const formData = new FormData();
-    formData.append('experience_type', 'tour');
+    formData.append('experience_type', 'motorbike');
     formData.append('company_name', companyName);
     
     fetch('/get_company_details', {
@@ -344,23 +428,20 @@ function calculateEditTotal() {
 // UTILITY FUNCTIONS
 // ===============================================
 
-// ฟังก์ชันโหลดข้อมูล companies
-function loadTourCompanies() {
-    return fetch('/api/companies')
+// Load motorbike companies on page load
+function loadMotorbikeCompanies() {
+    fetch('/api/companies')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                window.tourCompanies = data.tour_companies;
-                initializeCompanyDropdown();
-                return true;
+                window.motorbikeCompanies = data.motorbike_companies;
+                populateCompanyOptions(0);
             } else {
                 console.error('Error loading companies:', data.message);
-                return false;
             }
         })
         .catch(error => {
             console.error('Error loading companies:', error);
-            return false;
         });
 }
 
@@ -373,7 +454,7 @@ function initializeCompanyDropdown() {
     companySelect.innerHTML = '<option value="">-- Select Company --</option>';
     
     // Populate company dropdown
-    window.tourCompanies.forEach(company => {
+    window.motorbikeCompanies.forEach(company => {
         const option = document.createElement('option');
         option.value = company;
         option.textContent = company;
@@ -390,13 +471,14 @@ function initializeEditCompanies() {
     companySelect.innerHTML = '<option value="">-- Select Company --</option>';
     
     // Populate company dropdown
-    window.tourCompanies.forEach(company => {
+    window.motorbikeCompanies.forEach(company => {
         const option = document.createElement('option');
         option.value = company;
         option.textContent = company;
         companySelect.appendChild(option);
     });
 }
+
 
 // ปรับปรุงฟังก์ชัน showAlert ให้ทำงานร่วมกับ notification system ได้ดีขึ้น
 function showAlert(message, type) {
@@ -641,7 +723,7 @@ function confirmCancel() {
     const formData = new FormData(form);
     
     // เพิ่มข้อมูลพิเศษ
-    formData.append('booking_type', 'tour');
+    formData.append('booking_type', 'motorbike');
     formData.append('cancelled_by', cancelName);
     
     // ส่งคำขอ
@@ -692,10 +774,11 @@ function editBooking() {
     showAlert('Loading booking details...', 'info');
     
     // โหลดข้อมูล companies ก่อน (ถ้ายังไม่มี)
-    if (!window.tourCompanies || window.tourCompanies.length === 0) {
-        loadTourCompanies().then(() => {
+    if (!window.motorbikeCompanies || window.motorbikeCompanies.length === 0) {
+        loadMotorbikeCompanies();
+        setTimeout(() => {
             loadBookingDetailsForEdit(bookingNo);
-        });
+        }, 1000);
     } else {
         loadBookingDetailsForEdit(bookingNo);
     }
@@ -705,7 +788,7 @@ function editBooking() {
 function loadBookingDetailsForEdit(bookingNo) {
     const formData = new FormData();
     formData.append('booking_no', bookingNo);
-    formData.append('booking_type', 'tour');
+    formData.append('booking_type', 'motorbike');
     
     fetch('/get_booking_details', {
         method: 'POST',
@@ -743,13 +826,16 @@ function loadBookingDetailsForEdit(bookingNo) {
             // รอให้ companies โหลดเสร็จแล้วค่อยตั้งค่า
             setTimeout(() => {
                 if (booking.company_name) {
-                    document.getElementById('edit_company').value = booking.company_name;
+                    // สำหรับ motorbike ที่อาจมีหลายค่า ใช้ค่าแรก
+                    const firstCompany = booking.company_name.split(',')[0];
+                    document.getElementById('edit_company').value = firstCompany;
                     handleEditCompanyChange();
                     
                     // รอให้ details โหลดเสร็จแล้วค่อยตั้งค่า
                     setTimeout(() => {
                         if (booking.detail) {
-                            document.getElementById('edit_detail').value = booking.detail;
+                            const firstDetail = booking.detail.split(',')[0];
+                            document.getElementById('edit_detail').value = firstDetail;
                             handleEditDetailChange(); // ตั้งค่าราคา
                         }
                     }, 500);
@@ -790,7 +876,7 @@ function saveBooking() {
     }
     
     const formData = new FormData(form);
-    formData.append('booking_type', 'tour');
+    formData.append('booking_type', 'motorbike');
     
     fetch('/update_booking', {
         method: 'POST',
@@ -852,7 +938,7 @@ function exportBooking() {
     const exportModal = document.getElementById('exportModal');
     const modalTitle = exportModal.querySelector('h2');
     if (modalTitle) {
-        modalTitle.textContent = 'Export Tour Data';
+        modalTitle.textContent = 'Export Motorbike Data';
     }
     
     // Display the export modal
@@ -970,8 +1056,8 @@ function submitExport() {
     // แสดงข้อความกำลังดำเนินการ
     showAlert('Generating Excel file...', 'info');
     
-    // ส่งข้อมูลไปยัง tour export endpoint
-    fetch('/export_tour', {
+    // ส่งข้อมูลไปยัง motorbike export endpoint
+    fetch('/export_motorbike', {
         method: 'POST',
         body: formData
     })
@@ -1003,7 +1089,7 @@ function submitExport() {
         // กำหนดชื่อไฟล์
         const today = new Date();
         const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-        let filename = `Tour_Export_${dateStr}.xlsx`;
+        let filename = `Motorbike_Export_${dateStr}.xlsx`;
         a.download = filename;
         
         // เพิ่ม element ไปที่ DOM และ trigger การคลิก
@@ -1045,7 +1131,7 @@ function printToExcel() {
     
     const formData = new FormData();
     formData.append('booking_no', bookingNo);
-    formData.append('booking_type', 'tour');
+    formData.append('booking_type', 'motorbike');
     
     fetch('/generate_excel_form', {
         method: 'POST',
@@ -1118,7 +1204,7 @@ function downloadFile(url, bookingNo, fileType) {
     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
     const extension = fileType === 'pdf' ? 'pdf' : 'xlsx';
     
-    a.download = `Tour_Booking_${bookingNo}_${dateStr}.${extension}`;
+    a.download = `Motorbike_Booking_${bookingNo}_${dateStr}.${extension}`;
     
     // เพิ่ม element ไปที่ DOM และ trigger การคลิก
     document.body.appendChild(a);
@@ -1147,111 +1233,135 @@ window.onclick = function(event) {
 // Initialize เมื่อโหลดหน้า
 document.addEventListener('DOMContentLoaded', function() {
     // Load companies data
-    loadTourCompanies().then(success => {
-        console.log('Tour companies data loaded:', success);
-        
-        // Initialize discount validation first
-        initializeDiscountValidation();
-        
-        // Initialize form elements if they exist
-        const priceInput = document.getElementById('price');
-        const personsInput = document.getElementById('persons');
-        const discountInput = document.getElementById('discount');
-        const totalInput = document.getElementById('total');
-        
-        if (priceInput && personsInput && totalInput) {
-            priceInput.addEventListener('input', calculateTotal);
-            personsInput.addEventListener('input', calculateTotal);
-            if (discountInput) {
-                discountInput.addEventListener('input', calculateTotal);
-            }
+    loadMotorbikeCompanies();
+    
+    // Initialize discount validation first
+    initializeDiscountValidation();
+    
+    // Initialize form elements if they exist - สำหรับ motorbike form
+    const discountInput = document.getElementById('discount');
+    
+    if (discountInput) {
+        discountInput.addEventListener('input', calculateTotal);
+    }
+    
+    // Event listeners สำหรับ Edit Modal
+    const editPriceInput = document.getElementById('edit_price');
+    const editPersonsInput = document.getElementById('edit_persons');
+    const editDiscountInput = document.getElementById('edit_discount');
+    
+    if (editPriceInput && editPersonsInput) {
+        editPriceInput.addEventListener('input', calculateEditTotal);
+        editPersonsInput.addEventListener('input', calculateEditTotal);
+        if (editDiscountInput) {
+            editDiscountInput.addEventListener('input', calculateEditTotal);
         }
-        
-        // Event listeners สำหรับ Edit Modal
-        const editPriceInput = document.getElementById('edit_price');
-        const editPersonsInput = document.getElementById('edit_persons');
-        const editDiscountInput = document.getElementById('edit_discount');
-        
-        if (editPriceInput && editPersonsInput) {
-            editPriceInput.addEventListener('input', calculateEditTotal);
-            editPersonsInput.addEventListener('input', calculateEditTotal);
-            if (editDiscountInput) {
-                editDiscountInput.addEventListener('input', calculateEditTotal);
-            }
-        }
-        
-        // Form submission handler
-        const form = document.getElementById('luxuryBookingForm');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                // แสดง loading notification
-                const loadingNotif = showLoadingNotification('Submitting tour booking...');
-                
-                const formData = new FormData(form);
-                
-                fetch('/submit_tour_booking', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    // ปิด loading notification
-                    if (loadingNotif) {
-                        hideLoadingNotification(loadingNotif);
-                    }
-                    
-                    if (data.success) {
-                        showSuccessAlert(`Tour booking submitted successfully! Booking Number: ${data.booking_no}`);
-                        form.reset();
-                        initializeCompanyDropdown(); // Reset dropdown
-                        
-                        // Reset ฟิลด์ที่เป็น readonly หรือ calculated
-                        const priceField = document.getElementById('price');
-                        const totalField = document.getElementById('total');
-                        const detailField = document.getElementById('detail');
-                        
-                        if (priceField) priceField.value = '';
-                        if (totalField) totalField.value = '';
-                        if (detailField) detailField.innerHTML = '<option value="">-- Select Detail --</option>';
-                    } else {
-                        showErrorAlert(`Error: ${data.message}`);
-                    }
-                })
-                .catch(error => {
-                    // ปิด loading notification
-                    if (loadingNotif) {
-                        hideLoadingNotification(loadingNotif);
-                    }
-                    showErrorAlert(`An error occurred: ${error.message}`);
-                });
+    }
+    
+    // Form submission handler - สำหรับ motorbike form
+    const form = document.getElementById('luxuryBookingForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Collect all motorbike data
+            const entries = document.querySelectorAll('.motorbike-entry');
+            const companies = [];
+            const details = [];
+            const persons = [];
+            const prices = [];
+            
+            entries.forEach(entry => {
+                const entryId = entry.getAttribute('data-entry-id');
+                companies.push(document.getElementById(`company_${entryId}`).value);
+                details.push(document.getElementById(`detail_${entryId}`).value);
+                persons.push(document.getElementById(`persons_${entryId}`).value);
+                prices.push(document.getElementById(`price_${entryId}`).value);
             });
-        }
-        
-        // Date validation
-        const startDate = document.getElementById('start_date');
-        const endDate = document.getElementById('end_date');
-        
-        if (startDate && endDate) {
-            startDate.addEventListener('change', function() {
-                if (startDate.value) {
-                    endDate.min = startDate.value;
-                    if (endDate.value && endDate.value < startDate.value) {
-                        endDate.value = startDate.value;
-                    }
-                } else {
-                    endDate.min = "";
+            
+            // Create form data
+            const formData = new FormData(this);
+            
+            // Replace array values with comma-separated strings
+            formData.delete('company[]');
+            formData.delete('detail[]');
+            formData.delete('persons[]');
+            formData.delete('price[]');
+            
+            formData.append('company', companies.join(','));
+            formData.append('detail', details.join(','));
+            formData.append('persons', persons.join(','));
+            formData.append('price', prices.join(','));
+            
+            // แสดง loading notification
+            const loadingNotif = showLoadingNotification('Submitting motorbike booking...');
+            
+            // Submit the form
+            fetch('/submit_motorbike_booking', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // ปิด loading notification
+                if (loadingNotif) {
+                    hideLoadingNotification(loadingNotif);
                 }
+                
+                if (data.success) {
+                    showSuccessAlert(`Motorbike booking submitted successfully! Booking Number: ${data.booking_no}`);
+                    this.reset();
+                    location.reload();
+                } else {
+                    showErrorAlert(`Error: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                // ปิด loading notification
+                if (loadingNotif) {
+                    hideLoadingNotification(loadingNotif);
+                }
+                console.error('Error:', error);
+                showErrorAlert(`Error submitting booking: ${error.message}`);
             });
-        }
-    });
+        });
+    }
     
     // เพิ่ม event listeners สำหรับ Export Modal radio buttons
     const exportFilterRadios = document.querySelectorAll('input[name="exportFilterType"]');
     exportFilterRadios.forEach(radio => {
         radio.addEventListener('change', toggleExportFields);
     });
+    
+    // Date validation สำหรับ Motorbike Period
+    const searchDate = document.getElementById('searchDate');
+    const searchDateTo = document.getElementById('searchDateTo');
+    
+    if (searchDate && searchDateTo) {
+        searchDate.addEventListener('change', function() {
+            searchDateTo.min = searchDate.value;
+            if (searchDateTo.value && searchDateTo.value < searchDate.value) {
+                searchDateTo.value = searchDate.value;
+            }
+        });
+    }
+    
+    // Date validation สำหรับ search form
+    const startDate = document.getElementById('start_date');
+    const endDate = document.getElementById('end_date');
+    
+    if (startDate && endDate) {
+        startDate.addEventListener('change', function() {
+            if (startDate.value) {
+                endDate.min = startDate.value;
+                if (endDate.value && endDate.value < startDate.value) {
+                    endDate.value = startDate.value;
+                }
+            } else {
+                endDate.min = "";
+            }
+        });
+    }
     
     // ปิด modal เมื่อคลิกนอกพื้นที่
     window.addEventListener('click', function(event) {

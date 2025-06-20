@@ -823,7 +823,7 @@ def update_booking():
             payment_status = %s,
             payment_method = %s,
             staff_name = %s,
-            remark = %s
+            remark = %s,
             discount = %s
         WHERE booking_no = %s
         """
@@ -2069,7 +2069,6 @@ def search_motorbike_bookings():
     except Exception as e:
         return f"Error: {str(e)}"
 
-
 @app.route("/export_motorbike", methods=["POST"])
 @login_required
 def export_motorbike():
@@ -2080,42 +2079,40 @@ def export_motorbike():
         
         query = """
         SELECT 
-            tr.booking_date,
-            tr.booking_no, 
-            tr.travel_date, 
-            tr.customer_name, 
-            tr.customer_surname, 
-            tr.company_name,
-            tr.detail,
-            tr.staff_name,
-            tr.quantity, 
-            tr.received,
-            tr.payment_status,
-            tr.pickup_time,
-            tr.room,
-            tt.paid,
-            tt.payment_method,
-            tt.remark,
-            tt.discount
-        FROM motorbike_rental tr
-        LEFT JOIN motorbike_tabel tt ON tr.detail = tt.detail 
-                                   AND tr.company_name = tt.company_name
+            booking_date,
+            booking_no, 
+            travel_date, 
+            customer_name, 
+            customer_surname, 
+            company_name,
+            detail,
+            staff_name,
+            quantity,
+            received,
+            payment_status,
+            pickup_time,
+            room,
+            payment_method,
+            remark,
+            discount,
+            price
+        FROM motorbike_rental
         WHERE 1=1
         """
         
         params = []
         
-        # Apply date filters (เหมือนเดิม)
+        # Apply date filters
         if filter_type == 'date':
             start_date = request.form.get('start_date', '')
             end_date = request.form.get('end_date', '')
             
             if start_date:
-                query += " AND tr.booking_date >= %s"
+                query += " AND booking_date >= %s"
                 params.append(start_date)
             
             if end_date:
-                query += " AND tr.booking_date <= %s"
+                query += " AND booking_date <= %s"
                 params.append(end_date)
                 
         elif filter_type == 'month':
@@ -2154,17 +2151,15 @@ def export_motorbike():
                 query += " AND tr.booking_date < %s"
                 params.append(end_date)
         
-        # ⚠️ ลบ experience_type filter ออก
-        
         # Apply payment status filter
         if payment_status == 'paid':
-            query += " AND tr.payment_status = 'paid'"
+            query += " AND payment_status = 'paid'"
         elif payment_status == 'unpaid':
-            query += " AND tr.payment_status = 'unpaid'"
+            query += " AND payment_status = 'unpaid'"
         
-        query += " ORDER BY tr.booking_date DESC, tr.booking_no DESC"
+        query += " ORDER BY booking_date DESC, booking_no DESC"
         
-        # Execute query (เหมือนเดิม)
+        # Execute query
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute(query, params)
@@ -2175,18 +2170,22 @@ def export_motorbike():
         # Create Excel file
         workbook = openpyxl.Workbook()
         sheet = workbook.active
+        sheet.title = "Motorbike Bookings"
         
-        # ⚠️ เปลี่ยน sheet title
-        sheet.title = "motorbike Bookings"
-        
-        # Headers (เหมือนเดิม แต่ลบ Type column)
+        # Headers
         headers = [
             "Travel Date", "Time", "Booking Date", "Booking No.", "Name&Surname", 
-            "Room", "Company Name", "Detail", "Quantity", "Price / Person", 
-            "Received", "Paid", "Amount", "Staff Name", "Payment Method", "Remark", "Discount"
+            "Room", "Company Name", "Detail", "Quantity", "Price", "Discount", "Recieved"
         ]
+
+        if session.get('role') == 'admin':
+            headers.extend(["PAID", "AMOUNT"])
+
+        headers.extend([
+            "Payment Status", "Staff Name", "Payment Method", "Remark"
+        ])
         
-        # Style headers (เหมือนเดิม)
+        # Style headers
         for col_num, header in enumerate(headers, 1):
             cell = sheet.cell(row=1, column=col_num)
             cell.value = header
@@ -2196,9 +2195,9 @@ def export_motorbike():
             )
             cell.alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center")
         
-        # Add data rows (ลบ exp_type_display)
+        # Add data rows
         for row_num, booking in enumerate(bookings, 2):
-            # Format dates and times (เหมือนเดิม)
+            # Format dates and times
             booking_date = booking['booking_date']
             if isinstance(booking_date, (date, datetime)):
                 booking_date = booking_date.strftime("%d/%m/%Y")
@@ -2219,15 +2218,55 @@ def export_motorbike():
                 else:
                     pickup_time = str(booking['pickup_time'])
             
-            price_per_person = 0
-            if booking['quantity'] and booking['quantity'] > 0:
-                price_per_person = booking['received'] / booking['quantity']
+            # Get data from booking record and format comma-separated values with line breaks
+            quantities_str = booking['quantity'] if booking['quantity'] else ""
+            prices_str = booking['price'] if booking['price'] else ""
+            company_name_str = booking['company_name'] if booking['company_name'] else ""
+            detail_str = booking['detail'] if booking['detail'] else ""
+            received = booking['received'] if booking['received'] else 0
             
-            paid_amount = booking['paid'] if booking['paid'] else 0
-            amount = booking['received'] - paid_amount
-            full_name = f"{booking['customer_name']} {booking['customer_surname']}"
+            # Convert comma-separated values to line-separated for Excel display
+            def format_comma_to_lines(text):
+                if not text:
+                    return ""
+                return '\n'.join([item.strip() for item in str(text).split(',') if item.strip()])
             
-            # ⚠️ Row data ลบ exp_type_display ออก
+            company_name_str = booking['company_name'] or ""
+            detail_str = booking['detail'] or ""
+
+            # แปลงเป็น list
+            company_list = [c.strip() for c in company_name_str.split(',') if c.strip()]
+            detail_list = [d.strip() for d in detail_str.split(',') if d.strip()]
+
+            # ดึงข้อมูล paid จาก motorbike_tabel
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT company_name, detail, paid FROM motorbike_tabel")
+            rows = cursor.fetchall()
+            cursor.close()
+            conn.close()
+
+            # สร้าง dict โดยใช้ (company_name, detail) เป็น key
+            paid_lookup = {(row[0], row[1]): row[2] for row in rows}
+
+            # สร้าง paid_list โดย match ทีละคู่
+            paid_list = []
+            for cname, dval in zip(company_list, detail_list):
+                paid_value = paid_lookup.get((cname, dval), 0)
+                paid_list.append(str(paid_value))
+
+            # แปลงเป็น string
+            paid_str = ', '.join(paid_list)
+            paid_formatted = '\n'.join(paid_list)
+
+            
+            company_name_formatted = format_comma_to_lines(company_name_str)
+            detail_formatted = format_comma_to_lines(detail_str)
+            quantities_formatted = format_comma_to_lines(quantities_str)
+            prices_formatted = format_comma_to_lines(prices_str)
+            
+            full_name = f"{booking['customer_name'] or ''} {booking['customer_surname'] or ''}".strip()
+            
             row_data = [
                 travel_date,                     # Travel Date
                 pickup_time,                     # Time
@@ -2235,48 +2274,70 @@ def export_motorbike():
                 booking['booking_no'],           # Booking No.
                 full_name,                       # Name&Surname
                 booking['room'],                 # Room
-                booking['company_name'],         # Company Name
-                booking['detail'],               # Detail
-                booking['quantity'],             # Quantity
-                round(price_per_person, 2),      # Price / Person
-                booking['received'],             # Received
-                paid_amount,                     # Paid
-                round(amount, 2),                # Amount
-                booking['staff_name'],            # Staff Name
-                booking['payment_method'],
-                booking['remark'],
-                booking['discount']
+                company_name_formatted,          # Company Name (line-separated)
+                detail_formatted,                # Detail (line-separated)
+                quantities_formatted,            # Quantity (line-separated)
+                prices_formatted,                # Price (line-separated)
+                booking['discount'],              # Discount
+                received                        # Received
             ]
+
+            if session.get('role') == 'admin':
+
+                # คำนวณ amount = received - sum(paid_list)
+                try:
+                    received_float = float(booking['received']) if booking['received'] else 0
+                    paid_total = sum(float(p) for p in paid_list)
+                    amount = round(received_float - paid_total, 2)
+                except Exception:
+                    amount = 0
+
+                row_data.extend([paid_formatted, amount])
+
+
+            row_data.extend([
+                booking['payment_status'],       # Payment Status
+                booking['staff_name'],           # Staff Name
+                booking['payment_method'],       # Payment Method
+                booking['remark'],               # Remark
+            ])
             
             for col_num, cell_value in enumerate(row_data, 1):
                 cell = sheet.cell(row=row_num, column=col_num)
                 cell.value = cell_value
+                
+                # Enable text wrapping for cells with line breaks
+                if cell_value and isinstance(cell_value, str) and '\n' in cell_value:
+                    cell.alignment = openpyxl.styles.Alignment(wrap_text=True, vertical='top')
         
-        # Add Total row (เหมือนเดิม แต่ปรับ column numbers)
-        if bookings:
+        # Add Total row
+        if bookings and session.get('role') == 'admin':
             total_row = len(bookings) + 2
-            sheet.cell(row=total_row, column=9).value = "TOTAL"  # เปลี่ยนจาก column 10 เป็น 9
-            sheet.cell(row=total_row, column=9).font = openpyxl.styles.Font(bold=True)
+            sheet.cell(row=total_row, column=11).value = "TOTAL"  # Price column
+            sheet.cell(row=total_row, column=11).font = openpyxl.styles.Font(bold=True)
             
             start_data_row = 2
             end_data_row = total_row - 1
             
-            # ปรับ column numbers สำหรับ formulas
-            sheet.cell(row=total_row, column=11).value = f"=SUM(K{start_data_row}:K{end_data_row})"  # Received
-            sheet.cell(row=total_row, column=11).font = openpyxl.styles.Font(bold=True)
-            
-            sheet.cell(row=total_row, column=12).value = f"=SUM(L{start_data_row}:L{end_data_row})"  # Paid
+            # Add formula for total received
+            sheet.cell(row=total_row, column=12).value = f"=SUM(L{start_data_row}:L{end_data_row})"  # Received
             sheet.cell(row=total_row, column=12).font = openpyxl.styles.Font(bold=True)
-            
-            sheet.cell(row=total_row, column=13).value = f"=SUM(M{start_data_row}:M{end_data_row})"  # Amount
-            sheet.cell(row=total_row, column=13).font = openpyxl.styles.Font(bold=True)
         
-        # Auto-size columns (เหมือนเดิม)
+        # Auto-size columns and set row heights for wrapped text
         for column in sheet.columns:
             max_length = 0
             column_letter = openpyxl.utils.get_column_letter(column[0].column)
             for cell in column:
                 if cell.value:
+                    # Count lines for height calculation
+                    if isinstance(cell.value, str) and '\n' in cell.value:
+                        line_count = cell.value.count('\n') + 1
+                        # Set row height based on number of lines
+                        sheet.row_dimensions[cell.row].height = max(
+                            sheet.row_dimensions[cell.row].height or 15, 
+                            15 * line_count
+                        )
+                    
                     cell_length = len(str(cell.value))
                     if cell_length > max_length:
                         max_length = cell_length
@@ -2300,6 +2361,453 @@ def export_motorbike():
     except Exception as e:
         print(f"Export error: {str(e)}")
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
+# @app.route("/export_motorbike", methods=["POST"])
+# @login_required
+# def export_motorbike():
+#     try:
+#         # Get filter parameters
+#         filter_type = request.form.get('filter_type', '')
+#         payment_status = request.form.get('payment_status', 'all')
+        
+#         query = """
+#         SELECT 
+#             booking_date,
+#             booking_no, 
+#             travel_date, 
+#             customer_name, 
+#             customer_surname, 
+#             company_name,
+#             detail,
+#             staff_name,
+#             quantity,
+#             received,
+#             payment_status,
+#             pickup_time,
+#             room,
+#             payment_method,
+#             remark,
+#             discount,
+#             price
+#         FROM motorbike_rental
+#         WHERE 1=1
+#         """
+        
+#         params = []
+        
+#         # Apply date filters
+#         if filter_type == 'date':
+#             start_date = request.form.get('start_date', '')
+#             end_date = request.form.get('end_date', '')
+            
+#             if start_date:
+#                 query += " AND booking_date >= %s"
+#                 params.append(start_date)
+            
+#             if end_date:
+#                 query += " AND booking_date <= %s"
+#                 params.append(end_date)
+                
+#         elif filter_type == 'month':
+#             start_month = request.form.get('start_month', '')
+#             end_month = request.form.get('end_month', '')
+            
+#             if start_month:
+#                 start_date = f"{start_month}-01"
+#                 query += " AND tr.booking_date >= %s"
+#                 params.append(start_date)
+            
+#             if end_month:
+#                 year, month = map(int, end_month.split('-'))
+#                 if month == 12:
+#                     next_year = year + 1
+#                     next_month = 1
+#                 else:
+#                     next_year = year
+#                     next_month = month + 1
+                
+#                 end_date = f"{next_year}-{next_month:02d}-01"
+#                 query += " AND tr.booking_date < %s"
+#                 params.append(end_date)
+                
+#         elif filter_type == 'year':
+#             start_year = request.form.get('start_year', '')
+#             end_year = request.form.get('end_year', '')
+            
+#             if start_year:
+#                 start_date = f"{start_year}-01-01"
+#                 query += " AND tr.booking_date >= %s"
+#                 params.append(start_date)
+            
+#             if end_year:
+#                 end_date = f"{int(end_year) + 1}-01-01"
+#                 query += " AND tr.booking_date < %s"
+#                 params.append(end_date)
+        
+#         # Apply payment status filter
+#         if payment_status == 'paid':
+#             query += " AND payment_status = 'paid'"
+#         elif payment_status == 'unpaid':
+#             query += " AND payment_status = 'unpaid'"
+        
+#         query += " ORDER BY booking_date DESC, booking_no DESC"
+        
+#         # Execute query
+#         conn = get_db_connection()
+#         cursor = conn.cursor(cursor_factory=RealDictCursor)
+#         cursor.execute(query, params)
+#         bookings = cursor.fetchall()
+#         cursor.close()
+#         conn.close()
+        
+#         # Create Excel file
+#         workbook = openpyxl.Workbook()
+#         sheet = workbook.active
+#         sheet.title = "Motorbike Bookings"
+        
+#         # Headers
+#         headers = [
+#             "Travel Date", "Time", "Booking Date", "Booking No.", "Name&Surname", 
+#             "Room", "Company Name", "Detail", "Quantity", "Price", 
+#             "Received", "Discount", "Payment Status", "Staff Name", "Payment Method", "Remark"
+#         ]
+        
+#         # Style headers
+#         for col_num, header in enumerate(headers, 1):
+#             cell = sheet.cell(row=1, column=col_num)
+#             cell.value = header
+#             cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
+#             cell.fill = openpyxl.styles.PatternFill(
+#                 start_color="366092", end_color="366092", fill_type="solid"
+#             )
+#             cell.alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center")
+        
+#         # Add data rows
+#         for row_num, booking in enumerate(bookings, 2):
+#             # Format dates and times
+#             booking_date = booking['booking_date']
+#             if isinstance(booking_date, (date, datetime)):
+#                 booking_date = booking_date.strftime("%d/%m/%Y")
+            
+#             travel_date = booking['travel_date']
+#             if isinstance(travel_date, (date, datetime)):
+#                 travel_date = travel_date.strftime("%d/%m/%Y")
+            
+#             pickup_time = ''
+#             if booking['pickup_time']:
+#                 if hasattr(booking['pickup_time'], 'strftime'):
+#                     pickup_time = booking['pickup_time'].strftime('%H:%M')
+#                 elif hasattr(booking['pickup_time'], 'total_seconds'):
+#                     total_seconds = int(booking['pickup_time'].total_seconds())
+#                     hours = total_seconds // 3600
+#                     minutes = (total_seconds % 3600) // 60
+#                     pickup_time = f"{hours:02d}:{minutes:02d}"
+#                 else:
+#                     pickup_time = str(booking['pickup_time'])
+            
+#             # Get data from booking record
+#             quantities_str = booking['quantity'] if booking['quantity'] else ""
+#             prices_str = booking['price'] if booking['price'] else ""
+#             received = booking['received'] if booking['received'] else 0
+            
+#             full_name = f"{booking['customer_name'] or ''} {booking['customer_surname'] or ''}".strip()
+            
+#             row_data = [
+#                 travel_date,                     # Travel Date
+#                 pickup_time,                     # Time
+#                 booking_date,                    # Booking Date
+#                 booking['booking_no'],           # Booking No.
+#                 full_name,                       # Name&Surname
+#                 booking['room'],                 # Room
+#                 booking['company_name'],         # Company Name
+#                 booking['detail'],               # Detail
+#                 quantities_str,                  # Quantity
+#                 prices_str,                      # Price
+#                 received,                        # Received
+#                 booking['discount'],
+#                 booking['payment_status'],       # Payment Status
+#                 booking['staff_name'],           # Staff Name
+#                 booking['payment_method'],       # Payment Method
+#                 booking['remark'],               # Remark
+#             ]
+            
+#             for col_num, cell_value in enumerate(row_data, 1):
+#                 cell = sheet.cell(row=row_num, column=col_num)
+#                 cell.value = cell_value
+        
+#         # Add Total row
+#         if bookings:
+#             total_row = len(bookings) + 2
+#             sheet.cell(row=total_row, column=10).value = "TOTAL"  # Price column
+#             sheet.cell(row=total_row, column=10).font = openpyxl.styles.Font(bold=True)
+            
+#             start_data_row = 2
+#             end_data_row = total_row - 1
+            
+#             # Add formula for total received
+#             sheet.cell(row=total_row, column=11).value = f"=SUM(K{start_data_row}:K{end_data_row})"  # Received
+#             sheet.cell(row=total_row, column=11).font = openpyxl.styles.Font(bold=True)
+        
+#         # Auto-size columns
+#         for column in sheet.columns:
+#             max_length = 0
+#             column_letter = openpyxl.utils.get_column_letter(column[0].column)
+#             for cell in column:
+#                 if cell.value:
+#                     cell_length = len(str(cell.value))
+#                     if cell_length > max_length:
+#                         max_length = cell_length
+            
+#             adjusted_width = min(max_length + 2, 50)
+#             sheet.column_dimensions[column_letter].width = adjusted_width
+        
+#         # Create temporary file
+#         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+#         workbook.save(temp_file.name)
+#         temp_file.close()
+        
+#         # Send the file
+#         return send_file(
+#             temp_file.name,
+#             as_attachment=True,
+#             download_name=f"Motorbike_Export_{datetime.now().strftime('%Y%m%d')}.xlsx",
+#             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+#         )
+        
+#     except Exception as e:
+#         print(f"Export error: {str(e)}")
+#         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+    
+# @app.route("/export_motorbike", methods=["POST"])
+# @login_required
+# def export_motorbike():
+#     try:
+#         # Get filter parameters
+#         filter_type = request.form.get('filter_type', '')
+#         payment_status = request.form.get('payment_status', 'all')
+        
+#         query = """
+#         SELECT 
+#             tr.booking_date,
+#             tr.booking_no, 
+#             tr.travel_date, 
+#             tr.customer_name, 
+#             tr.customer_surname, 
+#             tr.company_name,
+#             tr.detail,
+#             tr.staff_name,
+#             tr.quantity, 
+#             tr.received,
+#             tr.payment_status,
+#             tr.pickup_time,
+#             tr.room,
+#             tt.paid,
+#             tt.payment_method,
+#             tt.remark,
+#             tt.discount
+#         FROM motorbike_rental tr
+#         LEFT JOIN motorbike_tabel tt ON tr.detail = tt.detail 
+#                                    AND tr.company_name = tt.company_name
+#         WHERE 1=1
+#         """
+        
+#         params = []
+        
+#         # Apply date filters (เหมือนเดิม)
+#         if filter_type == 'date':
+#             start_date = request.form.get('start_date', '')
+#             end_date = request.form.get('end_date', '')
+            
+#             if start_date:
+#                 query += " AND tr.booking_date >= %s"
+#                 params.append(start_date)
+            
+#             if end_date:
+#                 query += " AND tr.booking_date <= %s"
+#                 params.append(end_date)
+                
+#         elif filter_type == 'month':
+#             start_month = request.form.get('start_month', '')
+#             end_month = request.form.get('end_month', '')
+            
+#             if start_month:
+#                 start_date = f"{start_month}-01"
+#                 query += " AND tr.booking_date >= %s"
+#                 params.append(start_date)
+            
+#             if end_month:
+#                 year, month = map(int, end_month.split('-'))
+#                 if month == 12:
+#                     next_year = year + 1
+#                     next_month = 1
+#                 else:
+#                     next_year = year
+#                     next_month = month + 1
+                
+#                 end_date = f"{next_year}-{next_month:02d}-01"
+#                 query += " AND tr.booking_date < %s"
+#                 params.append(end_date)
+                
+#         elif filter_type == 'year':
+#             start_year = request.form.get('start_year', '')
+#             end_year = request.form.get('end_year', '')
+            
+#             if start_year:
+#                 start_date = f"{start_year}-01-01"
+#                 query += " AND tr.booking_date >= %s"
+#                 params.append(start_date)
+            
+#             if end_year:
+#                 end_date = f"{int(end_year) + 1}-01-01"
+#                 query += " AND tr.booking_date < %s"
+#                 params.append(end_date)
+        
+#         # ⚠️ ลบ experience_type filter ออก
+        
+#         # Apply payment status filter
+#         if payment_status == 'paid':
+#             query += " AND tr.payment_status = 'paid'"
+#         elif payment_status == 'unpaid':
+#             query += " AND tr.payment_status = 'unpaid'"
+        
+#         query += " ORDER BY tr.booking_date DESC, tr.booking_no DESC"
+        
+#         # Execute query (เหมือนเดิม)
+#         conn = get_db_connection()
+#         cursor = conn.cursor(cursor_factory=RealDictCursor)
+#         cursor.execute(query, params)
+#         bookings = cursor.fetchall()
+#         cursor.close()
+#         conn.close()
+        
+#         # Create Excel file
+#         workbook = openpyxl.Workbook()
+#         sheet = workbook.active
+        
+#         # ⚠️ เปลี่ยน sheet title
+#         sheet.title = "motorbike Bookings"
+        
+#         # Headers (เหมือนเดิม แต่ลบ Type column)
+#         headers = [
+#             "Travel Date", "Time", "Booking Date", "Booking No.", "Name&Surname", 
+#             "Room", "Company Name", "Detail", "Quantity", "Price / Person", 
+#             "Received", "Paid", "Amount", "Staff Name", "Payment Method", "Remark", "Discount"
+#         ]
+        
+#         # Style headers (เหมือนเดิม)
+#         for col_num, header in enumerate(headers, 1):
+#             cell = sheet.cell(row=1, column=col_num)
+#             cell.value = header
+#             cell.font = openpyxl.styles.Font(bold=True, color="FFFFFF")
+#             cell.fill = openpyxl.styles.PatternFill(
+#                 start_color="366092", end_color="366092", fill_type="solid"
+#             )
+#             cell.alignment = openpyxl.styles.Alignment(horizontal="center", vertical="center")
+        
+#         # Add data rows (ลบ exp_type_display)
+#         for row_num, booking in enumerate(bookings, 2):
+#             # Format dates and times (เหมือนเดิม)
+#             booking_date = booking['booking_date']
+#             if isinstance(booking_date, (date, datetime)):
+#                 booking_date = booking_date.strftime("%d/%m/%Y")
+            
+#             travel_date = booking['travel_date']
+#             if isinstance(travel_date, (date, datetime)):
+#                 travel_date = travel_date.strftime("%d/%m/%Y")
+            
+#             pickup_time = ''
+#             if booking['pickup_time']:
+#                 if hasattr(booking['pickup_time'], 'strftime'):
+#                     pickup_time = booking['pickup_time'].strftime('%H:%M')
+#                 elif hasattr(booking['pickup_time'], 'total_seconds'):
+#                     total_seconds = int(booking['pickup_time'].total_seconds())
+#                     hours = total_seconds // 3600
+#                     minutes = (total_seconds % 3600) // 60
+#                     pickup_time = f"{hours:02d}:{minutes:02d}"
+#                 else:
+#                     pickup_time = str(booking['pickup_time'])
+            
+#             price_per_person = 0
+#             if booking['quantity'] and booking['quantity'] > 0:
+#                 price_per_person = booking['received'] / booking['quantity']
+            
+#             paid_amount = booking['paid'] if booking['paid'] else 0
+#             amount = booking['received'] - paid_amount
+#             full_name = f"{booking['customer_name']} {booking['customer_surname']}"
+            
+#             # ⚠️ Row data ลบ exp_type_display ออก
+#             row_data = [
+#                 travel_date,                     # Travel Date
+#                 pickup_time,                     # Time
+#                 booking_date,                    # Booking Date
+#                 booking['booking_no'],           # Booking No.
+#                 full_name,                       # Name&Surname
+#                 booking['room'],                 # Room
+#                 booking['company_name'],         # Company Name
+#                 booking['detail'],               # Detail
+#                 booking['quantity'],             # Quantity
+#                 round(price_per_person, 2),      # Price / Person
+#                 booking['received'],             # Received
+#                 paid_amount,                     # Paid
+#                 round(amount, 2),                # Amount
+#                 booking['staff_name'],            # Staff Name
+#                 booking['payment_method'],
+#                 booking['remark'],
+#                 booking['discount']
+#             ]
+            
+#             for col_num, cell_value in enumerate(row_data, 1):
+#                 cell = sheet.cell(row=row_num, column=col_num)
+#                 cell.value = cell_value
+        
+#         # Add Total row (เหมือนเดิม แต่ปรับ column numbers)
+#         if bookings:
+#             total_row = len(bookings) + 2
+#             sheet.cell(row=total_row, column=9).value = "TOTAL"  # เปลี่ยนจาก column 10 เป็น 9
+#             sheet.cell(row=total_row, column=9).font = openpyxl.styles.Font(bold=True)
+            
+#             start_data_row = 2
+#             end_data_row = total_row - 1
+            
+#             # ปรับ column numbers สำหรับ formulas
+#             sheet.cell(row=total_row, column=11).value = f"=SUM(K{start_data_row}:K{end_data_row})"  # Received
+#             sheet.cell(row=total_row, column=11).font = openpyxl.styles.Font(bold=True)
+            
+#             sheet.cell(row=total_row, column=12).value = f"=SUM(L{start_data_row}:L{end_data_row})"  # Paid
+#             sheet.cell(row=total_row, column=12).font = openpyxl.styles.Font(bold=True)
+            
+#             sheet.cell(row=total_row, column=13).value = f"=SUM(M{start_data_row}:M{end_data_row})"  # Amount
+#             sheet.cell(row=total_row, column=13).font = openpyxl.styles.Font(bold=True)
+        
+#         # Auto-size columns (เหมือนเดิม)
+#         for column in sheet.columns:
+#             max_length = 0
+#             column_letter = openpyxl.utils.get_column_letter(column[0].column)
+#             for cell in column:
+#                 if cell.value:
+#                     cell_length = len(str(cell.value))
+#                     if cell_length > max_length:
+#                         max_length = cell_length
+            
+#             adjusted_width = min(max_length + 2, 50)
+#             sheet.column_dimensions[column_letter].width = adjusted_width
+        
+#         # Create temporary file
+#         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+#         workbook.save(temp_file.name)
+#         temp_file.close()
+        
+#         # Send the file
+#         return send_file(
+#             temp_file.name,
+#             as_attachment=True,
+#             download_name=f"Motorbike_Export_{datetime.now().strftime('%Y%m%d')}.xlsx",
+#             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+#         )
+        
+#     except Exception as e:
+#         print(f"Export error: {str(e)}")
+#         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
 
 
 # -------------------------------- home transfer Page --------------------------------------------------------------
@@ -2788,7 +3296,7 @@ def update_transfer_booking():
         price = request.form.get('price', '0')
         payment_method = request.form.get('paymentmethod', '')
         remark = request.form.get('remark', '')
-        discount = request.form.get('discount', '')  # แก้ไข typo จาก 'discounr'
+        discount = request.form.get('discount', '')
         
         if not booking_no:
             return jsonify({"success": False, "message": "Booking number is required"})

@@ -420,7 +420,6 @@
     </div>
 
 <!-- Modal สำหรับการแก้ไขข้อมูล (Updated) -->
-<!-- แทนที่ Edit Modal เดิมด้วยโค้ดนี้ -->
 <div id="editModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -534,7 +533,7 @@
     </div>
 </div>
 
-<!-- Modal สำหรับการ export ข้อมูล Tour & Motorbike -->
+<!-- Export Modal สำหรับ Motorbike -->
 <div id="exportModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -602,7 +601,7 @@
                 </div>
             </div>
             
-            <!-- เพิ่มตัวเลือกเพิ่มเติม -->
+            <!-- Payment Status Filter -->
             <div class="form-group">
                 <label>Payment Status (Optional):</label>
                 <div class="radio-group">
@@ -629,18 +628,17 @@
     </div>
 </div>
 
-    <!-- Scripts -->
-    <script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
-    <script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/P1P3_script.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/notification.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/setting_protection.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/loading.js') }}"></script>
-
-
+<!-- Scripts สำหรับ Motorbike -->
+<script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/notification.js') }}"></script>
+<script src="{{ url_for('static', filename='js/setting_protection.js') }}"></script>
+<script src="{{ url_for('static', filename='js/loading.js') }}"></script>
+<!-- เปลี่ยนจาก P1P3_script.js เป็น P3_script.js -->
+<script src="{{ url_for('static', filename='js/P3_script.js') }}"></script>
 
 </body>
 </html>
