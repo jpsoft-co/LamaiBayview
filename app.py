@@ -2101,6 +2101,8 @@ def export_motorbike():
         """
         
         params = []
+
+        total_paid = 0
         
         # Apply date filters
         if filter_type == 'date':
@@ -2249,15 +2251,25 @@ def export_motorbike():
             # สร้าง dict โดยใช้ (company_name, detail) เป็น key
             paid_lookup = {(row[0], row[1]): row[2] for row in rows}
 
-            # สร้าง paid_list โดย match ทีละคู่
-            paid_list = []
-            for cname, dval in zip(company_list, detail_list):
-                paid_value = paid_lookup.get((cname, dval), 0)
-                paid_list.append(str(paid_value))
+            # แปลง quantity เป็น list ของ float
+            quantity_list = [float(q.strip()) if q.strip().replace('.', '', 1).isdigit() else 0 for q in quantities_str.split(',') if q.strip()]
 
-            # แปลงเป็น string
-            paid_str = ', '.join(paid_list)
+            # สร้าง paid_list โดย match ทีละคู่และคูณกับ quantity
+            paid_list = []
+            for i, (cname, dval) in enumerate(zip(company_list, detail_list)):
+                paid_value = float(paid_lookup.get((cname, dval), 0) or 0)
+                qty = quantity_list[i] if i < len(quantity_list) else 1
+                paid_amount = paid_value * qty
+                paid_list.append(f"{paid_amount:.2f}")
+
+            # รวมยอด paid ในแต่ละแถวสำหรับรวม total ทีหลัง
+            paid_total = sum(float(p) for p in paid_list)
+
+            # เก็บเป็นหลายบรรทัดสำหรับใส่ใน Excel
             paid_formatted = '\n'.join(paid_list)
+
+            # สะสมยอดรวมเพื่อใช้ในแถว TOTAL
+            total_paid += paid_total
 
             
             company_name_formatted = format_comma_to_lines(company_name_str)
@@ -2322,6 +2334,14 @@ def export_motorbike():
             # Add formula for total received
             sheet.cell(row=total_row, column=12).value = f"=SUM(L{start_data_row}:L{end_data_row})"  # Received
             sheet.cell(row=total_row, column=12).font = openpyxl.styles.Font(bold=True)
+
+            # Add formula for total paid (column 13)
+            sheet.cell(row=total_row, column=13).value = total_paid
+            sheet.cell(row=total_row, column=13).font = openpyxl.styles.Font(bold=True)
+
+            # Add formula for total amount (column 14)
+            sheet.cell(row=total_row, column=14).value = f"=SUM(N{start_data_row}:N{end_data_row})"
+            sheet.cell(row=total_row, column=14).font = openpyxl.styles.Font(bold=True)
         
         # Auto-size columns and set row heights for wrapped text
         for column in sheet.columns:
