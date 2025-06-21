@@ -1306,7 +1306,7 @@ def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
 
 def add_tour_images(sheet, script_dir):
     """เพิ่มรูปภาพสำหรับ Tour"""
-    logo_path = os.path.join(script_dir, 'static', 'images', 'logoexcel.png')
+    logo_path = os.path.join(script_dir, 'static', 'image123', 'logscsoscexcel.png')
     
     if os.path.exists(logo_path):
         try:
@@ -1327,26 +1327,10 @@ def add_tour_images(sheet, script_dir):
         except Exception as e:
             print(f"Error adding tour logo: {str(e)}")
     
-    # เพิ่มรูปอื่นๆ สำหรับ Tour
-    additional_images = [
-        {'path': os.path.join(script_dir, 'static', 'images', 'signature.png'), 'anchor': 'H25'},
-    ]
-    
-    for img_info in additional_images:
-        if os.path.exists(img_info['path']):
-            try:
-                img = Image(img_info['path'])
-                img.width = 80
-                img.height = 40
-                img.anchor = img_info['anchor']
-                sheet.add_image(img)
-                print(f"Tour additional image added")
-            except Exception as e:
-                print(f"Error adding tour image: {str(e)}")
 
 def add_motorbike_images(sheet, script_dir):
     """เพิ่มรูปภาพสำหรับ Motorbike"""
-    logo_path = os.path.join(script_dir, 'static', 'images', 'logoexcel.png')
+    logo_path = os.path.join(script_dir, 'static', 'image', 'logoexcel.png')
     
     if os.path.exists(logo_path):
         try:
@@ -1383,21 +1367,21 @@ def add_motorbike_images(sheet, script_dir):
             print(f"Error adding motorbike logo: {str(e)}")
     
     # เพิ่มรูปอื่นๆ สำหรับ Motorbike
-    additional_images = [
-        {'path': os.path.join(script_dir, 'static', 'images', 'signature.png'), 'anchor': 'H25'},
-    ]
+    # additional_images = [
+    #     {'path': os.path.join(script_dir, 'static', 'images', 'signature.png'), 'anchor': 'H25'},
+    # ]
     
-    for img_info in additional_images:
-        if os.path.exists(img_info['path']):
-            try:
-                img = Image(img_info['path'])
-                img.width = 80
-                img.height = 40
-                img.anchor = img_info['anchor']
-                sheet.add_image(img)
-                print(f"Motorbike additional image added")
-            except Exception as e:
-                print(f"Error adding motorbike image: {str(e)}")
+    # for img_info in additional_images:
+    #     if os.path.exists(img_info['path']):
+    #         try:
+    #             img = Image(img_info['path'])
+    #             img.width = 80
+    #             img.height = 40
+    #             img.anchor = img_info['anchor']
+    #             sheet.add_image(img)
+    #             print(f"Motorbike additional image added")
+    #         except Exception as e:
+    #             print(f"Error adding motorbike image: {str(e)}")
 
 @app.route("/export_tour", methods=["POST"])
 @login_required
