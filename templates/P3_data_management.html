@@ -320,6 +320,8 @@
             <button class="tab active" onclick="openTab(event, 'tour-tab')">Tour Data</button>
             <button class="tab" onclick="openTab(event, 'motorbike-tab')">Motorbike Data</button>
             <button class="tab" onclick="openTab(event, 'transfer-tab')">Transfer Data</button>
+            <button class="tab" onclick="openTab(event, 'login-tab')">Login Data</button>
+            <button class="tab" onclick="openTab(event, 'room-tab')">Room Data</button>
         </div>
 
         <!-- Tour Table -->
@@ -394,12 +396,62 @@
                 <button class="btn btn-submit" onclick="submitTransferData()">Submit Changes</button>
             </div>
         </div>
+
+        <!-- Login Table -->
+        <div id="login-tab" class="tab-content">
+            <div id="login-message"></div>
+            <div class="table-container">
+                <table id="login-table">
+                    <thead>
+                        <tr>
+                            <th>USERNAME</th> 
+                            <th>PASSWORD</th>
+                            <th>NAME</th>
+                            <th>SURNAME</th>
+                            <th>ROLE</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="login-tbody">
+                        <!-- Existing data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="actions-container">
+                <button class="btn btn-submit" onclick="submitLoginData()">Submit Changes</button>
+            </div>
+        </div>
+
+        <!-- Room Table -->
+        <div id="room-tab" class="tab-content">
+            <div id="room-message"></div>
+            <div class="table-container">
+                <table id="room-table">
+                    <thead>
+                        <tr>
+                            <th>ROOM</th> 
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="room-tbody">
+                        <!-- Existing data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="actions-container">
+                <button class="btn btn-submit" onclick="submitRoomData()">Submit Changes</button>
+            </div>
+        </div>
     </div>
+    
+    
 
     <script>
         let tourData = [];
         let motorbikeData = [];
         let transferData = [];
+        let loginData = [];
+        let roomData = [];
 
         // Tab functionality
         function openTab(evt, tabName) {
@@ -421,6 +473,8 @@
             loadTourData();
             loadMotorbikeData();
             loadTransferData();
+            loadLoginData();
+            loadRoomData();
         });
 
         // Show message
@@ -698,6 +752,182 @@
             })
             .catch(error => {
                 showMessage('transfer-message', 'Error updating data', 'error');
+                console.error('Error:', error);
+            });
+        }
+
+        
+
+        // Login Data Functions
+        function loadLoginData() {
+            fetch('/api/login_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loginData = data.data;
+                        renderLoginTable();
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function renderLoginTable() {
+            const tbody = document.getElementById('login-tbody');
+            tbody.innerHTML = '';
+            
+            // Render existing data
+            loginData.forEach((item, index) => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td><input type="text" value="${item.username}" onchange="updateLoginData(${index}, 'username', this.value)"></td>
+                    <td><input type="text" value="${item.pass}" onchange="updateLoginData(${index}, 'pass', this.value)"></td>
+                    <td><input type="text" value="${item.first_name}" onchange="updateLoginData(${index}, 'first_name', this.value)"></td>
+                    <td><input type="text" value="${item.last_name}" onchange="updateLoginData(${index}, 'last_name', this.value)"></td>
+                    <td><input type="text" value="${item.role}" onchange="updateLoginData(${index}, 'role', this.value)"></td>
+                    <td><button class="btn btn-delete" onclick="deleteLoginRow(${index})">Delete</button></td>
+                `;
+            });
+            
+            // Add new row
+            const newRow = tbody.insertRow();
+            newRow.className = 'new-row';
+            newRow.innerHTML = `
+                <td><input type="text" id="login-new-username" placeholder="Enter username"></td>
+                <td><input type="text" id="login-new-pass" placeholder="Enter password"></td>
+                <td><input type="text" id="login-new-first_name" placeholder="Enter name"></td>
+                <td><input type="text" id="login-new-last_name" placeholder="Enter surname"></td>
+                <td><input type="text" id="login-new-role" placeholder="Enter role"></td>
+                <td><button class="btn btn-submit" onclick="addNewLoginRow()">Add</button></td>
+            `;
+        }
+
+        function addNewLoginRow() {
+            const username = document.getElementById('login-new-username').value;
+            const pass = document.getElementById('login-new-pass').value;
+            const first_name = document.getElementById('login-new-first_name').value;
+            const last_name = document.getElementById('login-new-last_name').value;
+            const role = document.getElementById('login-new-role').value;
+            
+            if (username && role) {
+                loginData.push({ id: null, username: username, pass: pass, first_name: first_name, last_name: last_name, role: role });
+                renderLoginTable();
+            } else {
+                showMessage('login-message', 'Please fill in username and role', 'error');
+            }
+        }
+
+        function updateLoginData(index, field, value) {
+            loginData[index][field] = value;
+        }
+
+
+        function deleteLoginRow(index) {
+            if (confirm('Are you sure you want to delete this row?')) {
+                loginData.splice(index, 1);
+                renderLoginTable();
+            }
+        }
+
+        function submitLoginData() {
+            fetch('/api/update_login_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: loginData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('login-message', 'Login data updated successfully!', 'success');
+                    loadLoginData();
+                } else {
+                    showMessage('login-message', data.message || 'Error updating data', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('login-message', 'Error updating data', 'error');
+                console.error('Error:', error);
+            });
+        }
+
+        // 2. แก้ไขฟังก์ชัน Room Data Functions ทั้งหมด
+        function loadRoomData() {
+            fetch('/api/room_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        roomData = data.data; // ✅ แก้จาก RoomData เป็น roomData
+                        renderRoomTable();
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function renderRoomTable() {
+            const tbody = document.getElementById('room-tbody');
+            tbody.innerHTML = '';
+            
+            // Render existing data
+            roomData.forEach((item, index) => { // ✅ แก้จาก RoomData เป็น roomData
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td><input type="text" value="${item.room}" onchange="updateRoomData(${index}, 'room', this.value)"></td>
+                    <td><button class="btn btn-delete" onclick="deleteRoomRow(${index})">Delete</button></td>
+                `;
+            });
+            
+            // Add new row
+            const newRow = tbody.insertRow();
+            newRow.className = 'new-row';
+            newRow.innerHTML = `
+                <td><input type="text" id="room-new-room" placeholder="Enter room"></td>
+                <td><button class="btn btn-submit" onclick="addNewRoomRow()">Add</button></td>
+            `;
+        }
+
+        // 3. เพิ่มฟังก์ชัน updateRoomData ที่หายไป
+        function updateRoomData(index, field, value) {
+            roomData[index][field] = value;
+        }
+
+        function addNewRoomRow() {
+            const room = document.getElementById('room-new-room').value;
+            
+            if (room) {
+                roomData.push({ id: null, room: room}); // ✅ แก้จาก RoomData เป็น roomData
+                renderRoomTable();
+            } else {
+                showMessage('room-message', 'Please fill in room', 'error');
+            }
+        }
+
+        function deleteRoomRow(index) {
+            if (confirm('Are you sure you want to delete this row?')) {
+                roomData.splice(index, 1); // ✅ แก้จาก RoomData เป็น roomData
+                renderRoomTable();
+            }
+        }
+
+        function submitRoomData() {
+            fetch('/api/update_room_data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: roomData }) // ✅ ใช้ roomData ให้ถูกต้อง
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('room-message', 'Room data updated successfully!', 'success');
+                    loadRoomData();
+                } else {
+                    showMessage('room-message', data.message || 'Error updating data', 'error');
+                }
+            })
+            .catch(error => {
+                showMessage('room-message', 'Error updating data', 'error');
                 console.error('Error:', error);
             });
         }

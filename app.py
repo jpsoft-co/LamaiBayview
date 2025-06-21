@@ -1136,19 +1136,6 @@ def create_tour_excel_form(booking, workbook, sheet, script_dir):
 def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
     """สร้าง Excel form สำหรับ Motorbike แบบแยกบรรทัด"""
      
-    # ✅ ข้อมูลพื้นฐานที่ไม่ต้องแยก
-    # basic_mappings = {
-    #     "booking_date": ["J3", "J32"],
-    #     "booking_no": ["J4", "J33"],
-    #     "customer_name": ["D11", "D40", "G27", "G56"],
-    #     "room": ["D13", "D42"],
-    #     "travel_date": ["F13", "F42"],
-    #     "pickup_time": ["I13", "I42"],
-    #     "payment_status": ["D24", "D53"],
-    #     "staff_name": ["B27", "B56"],
-    #     "payment_method": ["H24", "H53"],
-    #     "remark": ["D23", "D52"]
-    # }
     basic_mappings = {
         "booking_date": ["I4", "I29"],
         "booking_no": ["I6", "I30", "T10", "AE10"],
@@ -3862,6 +3849,132 @@ def get_motorbike_data_api():
         conn.close()
         
         return jsonify({"success": True, "data": data})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+    
+# API สำหรับ Login Data
+@app.route("/api/login_data", methods=["GET"])
+@login_required
+def get_login_data():
+
+    
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "Access Denied: Admin only"})
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        query = "SELECT * FROM login ORDER BY id"
+        cursor.execute(query)
+        data = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+
+
+# API Login
+
+@app.route("/api/update_login_data", methods=["POST"])
+@login_required
+def update_login_data():
+
+    
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "Access Denied: Admin only"})
+
+    try:
+        data = request.json.get('data', [])
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # ลบข้อมูลทั้งหมดในตาราง
+        cursor.execute("DELETE FROM login")
+        
+        # เพิ่มข้อมูลใหม่
+        for item in data:
+            query = """
+            INSERT INTO login (username, pass, first_name, last_name, role) 
+            VALUES (%s, %s, %s, %s, %s)
+            """
+            cursor.execute(query, (
+                item['username'], 
+                item['pass'], 
+                item['first_name'], 
+                item['last_name'], 
+                item['role']
+            ))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"success": True, "message": "Login data updated successfully"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+    
+# API สำหรับ Room Data
+@app.route("/api/room_data", methods=["GET"])
+@login_required
+def get_room_data():
+
+    
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "Access Denied: Admin only"})
+
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        query = "SELECT * FROM room ORDER BY room"
+        cursor.execute(query)
+        data = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+
+
+# API Room
+
+@app.route("/api/update_room_data", methods=["POST"])
+@login_required
+def update_room_data():
+
+    
+    if session.get('role') != 'admin':
+        return jsonify({"success": False, "message": "Access Denied: Admin only"})
+
+    try:
+        data = request.json.get('data', [])
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # ลบข้อมูลทั้งหมดในตาราง
+        cursor.execute("DELETE FROM room")
+        
+        # เพิ่มข้อมูลใหม่
+        for item in data:
+            query = """
+            INSERT INTO room (room) 
+            VALUES (%s)
+            """
+            cursor.execute(query, (str(item['room']),))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"success": True, "message": "Room data updated successfully"})
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
     
