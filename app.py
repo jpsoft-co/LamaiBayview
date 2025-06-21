@@ -3193,7 +3193,7 @@ def create_excel_form_transfer(booking):
         "pickup_time": ["H15", "H42"],
         "quantity": ["E17", "E44"],
         "received": ["H17", "H44"],
-        "detail": ["D19", "D43"],
+        "detail": ["D19", "D46"],
         "payment_status": ["D22", "D49"],
         "staff_name": ["B25", "B52"],
         "remark": ["D21", "D48"],
