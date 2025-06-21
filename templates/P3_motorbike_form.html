@@ -1,4 +1,3 @@
-<!-- P3_motorbike_form.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -436,28 +435,34 @@
         </div>
     </div>
 
-<!-- Modal สำหรับการแก้ไขข้อมูล (Updated) -->
+<!-- Modal สำหรับการแก้ไขข้อมูล Motorbike - Multiple Bikes Support -->
 <div id="editModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <span class="close" onclick="closeModal()">&times;</span>
-            <h2>Edit Booking</h2>
+            <h2>Edit Motorbike Booking</h2>
         </div>
         <form id="editForm" class="edit-form">
             <input type="hidden" id="edit_booking_no" name="booking_no">
             <input type="hidden" name="booking_type" value="motorbike">
             
+            <!-- ข้อมูลพื้นฐาน -->
             <div class="form-row">
                 <div class="form-group">
-                    <label for="edit_date">Travel Date:</label>
-                    <input type="date" id="edit_date" name="date" required>
+                    <label for="edit_date">Date from:</label>
+                    <input type="date" id="edit_date" name="searchDate" required>
                 </div>
+                <div class="form-group">
+                    <label for="edit_searchDateTo">Date to:</label>
+                    <input type="date" id="edit_searchDateTo" name="searchDateTo" required>
+                </div>
+            </div>
+            <div class="form-row">
                 <div class="form-group">
                     <label for="edit_time">Pickup Time:</label>
                     <input type="time" id="edit_time" name="time" required>
                 </div>
             </div>
-            
             <div class="form-row">
                 <div class="form-group">
                     <label for="edit_name">First Name:</label>
@@ -478,34 +483,7 @@
                     {% endfor %}
                 </select>
             </div>
-            
-            <!-- แก้ไขให้เป็น dropdown จริงๆ -->
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="edit_company">Company Name:</label>
-                    <select id="edit_company" name="company" required onchange="handleEditCompanyChange()">
-                        <option value="">-- Select Company --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="edit_detail">Detail:</label>
-                    <select id="edit_detail" name="detail" required onchange="handleEditDetailChange()">
-                        <option value="">-- Select Detail --</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="edit_persons">Quantity:</label>
-                    <input type="number" id="edit_persons" name="persons" min="1" required onchange="calculateEditTotal()">
-                </div>
-                <div class="form-group">
-                    <label for="edit_price">Price per Person:</label>
-                    <input type="number" id="edit_price" name="price" min="0" step="0.01" required readonly>
-                </div>
-            </div>
-            
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="edit_status">Payment Status:</label>
@@ -514,6 +492,19 @@
                         <option value="unpaid">Unpaid</option>
                     </select>
                 </div>
+            </div>
+            
+            <!-- Motorbike Entries Container -->
+            <div id="editMotorbikeEntries">
+                <!-- Motorbike entries จะถูกเพิ่มที่นี่ -->
+            </div>
+            
+            <!-- ปุ่มเพิ่ม Motorbike -->
+            <div style="text-align: center; margin: 20px 0;">
+                <button type="button" class="btn" onclick="addEditMotorbikeEntry()">Add Another Motorbike</button>
+            </div>
+            
+            <div class="form-row">
                 <div class="form-group">
                     <label for="edit_method">Payment Method:</label>
                     <select id="edit_method" name="paymentmethod" required>
@@ -522,17 +513,23 @@
                         <option value="Bank">Bank transfer</option>
                         <option value="Unpaid">Unpaid</option>
                     </select>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="edit_discount">Discount:</label>
-                    <input type="text" id="edit_discount" name="discount">
                 </div>
                 <div class="form-group">
                     <label for="edit_staffName">Staff Name:</label>
                     <input type="text" id="edit_staffName" name="staffName" required>
                 </div>             
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="edit_discount">Discount:</label>
+                    <input type="text" id="edit_discount" name="discount" placeholder="e.g. 100 or 20%">
+                </div>
+                <div class="form-group">
+                    <label for="edit_total_display">Total Amount:</label>
+                    <input type="number" id="edit_total_display" step="0.01" readonly style="background-color: #f5f5f5;">
+                    <input type="hidden" id="edit_total" name="total">
+                </div>                
             </div>
 
             <div class="form-row">
@@ -544,7 +541,7 @@
             
             <div class="modal-footer">
                 <button type="button" class="card-btn" onclick="closeModal()">Cancel</button>
-                <button type="button" class="card-btn" onclick="saveBooking()">Save Changes</button>
+                <button type="button" class="card-btn" onclick="saveEditMotorbikeBooking()">Save Changes</button>
             </div>
         </form>
     </div>

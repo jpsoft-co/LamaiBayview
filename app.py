@@ -39,21 +39,32 @@ def login_required(f):
 # ---------------------------------------Connect database ---------------------------------------
 
 # Database connection
-def get_db_connection():
-    database_url = os.getenv("DATABASE_URL")
+# def get_db_connection():
+#     database_url = os.getenv("DATABASE_URL")
     
-    if database_url:
-        # สำหรับ Render.com
-        return psycopg2.connect(database_url)
-    else:
-        # สำหรับ local development
-        return psycopg2.connect(
-            host=os.getenv("DB_HOST"),
-            port=int(os.getenv("DB_PORT", 5432)),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASS"),
-            database=os.getenv("DB_NAME")
-        )
+#     if database_url:
+#         # สำหรับ Render.com
+#         return psycopg2.connect(database_url)
+#     else:
+#         # สำหรับ local development
+#         return psycopg2.connect(
+#             host=os.getenv("DB_HOST"),
+#             port=int(os.getenv("DB_PORT", 5432)),
+#             user=os.getenv("DB_USER"),
+#             password=os.getenv("DB_PASS"),
+#             database=os.getenv("DB_NAME")
+#         )
+
+        
+def get_db_connection():
+    return psycopg2.connect(
+        host="dpg-d0qsdf95pdvs73atfls0-a.oregon-postgres.render.com",  # ✅ host ต้องไม่มี protocol
+        port="5432",
+        dbname="booking_system_mmdr",
+        user="booking_user",
+        password="1YtEzFr8UkRTNzzwYtKQe8jaaremuxyA",
+        sslmode="require"  # ✅ ใช้ sslmode=required กับ Render
+    )
 
 
 def load_data_from_file(filename):
@@ -2056,6 +2067,136 @@ def search_motorbike_bookings():
     
     except Exception as e:
         return f"Error: {str(e)}"
+    
+@app.route("/update_motorbike_booking", methods=["POST"])
+@login_required
+def update_motorbike_booking():
+    try:
+        # รับค่าจากฟอร์มแก้ไข
+        booking_no = request.form.get('booking_no')
+        
+        # ข้อมูลพื้นฐาน
+        customer_name = request.form.get('name', '')
+        customer_surname = request.form.get('surname', '')
+        room = request.form.get('room', '')
+        pickup_time = request.form.get('time', '')
+        travel_date = request.form.get('searchDate', '')  # เปลี่ยนจาก date เป็น searchDate
+        start_booking_date = request.form.get('searchDate', '')  # ใช้ travel_date เป็น start_booking_date
+        end_booking_date = request.form.get('searchDateTo', '')
+        payment_status = request.form.get('status', '')
+        payment_method = request.form.get('paymentmethod', '')
+        staff_name = request.form.get('staffName', '')
+        remark = request.form.get('remark', '')
+        discount = request.form.get('discount', '')
+        
+        # ข้อมูล motorbike แบบ comma-separated
+        companies = request.form.get('company', '')  # comma-separated
+        details = request.form.get('detail', '')     # comma-separated
+        persons_str = request.form.get('persons', '') # comma-separated
+        prices_str = request.form.get('price', '')   # comma-separated
+        
+        if not booking_no:
+            return jsonify({"success": False, "message": "Booking number is required"})
+        
+        # ตรวจสอบข้อมูล motorbike
+        if not all([companies, details, persons_str, prices_str]):
+            return jsonify({"success": False, "message": "Missing motorbike data"})
+        
+        try:
+            # แปลง comma-separated strings เป็น lists เพื่อตรวจสอบ
+            company_list = [c.strip() for c in companies.split(',') if c.strip()]
+            detail_list = [d.strip() for d in details.split(',') if d.strip()]
+            persons_list = [int(p.strip()) for p in persons_str.split(',') if p.strip()]
+            prices_list = [float(p.strip()) for p in prices_str.split(',') if p.strip()]
+            
+            # ตรวจสอบความยาวของ lists ต้องเท่ากัน
+            if not (len(company_list) == len(detail_list) == len(persons_list) == len(prices_list)):
+                raise ValueError("Motorbike data arrays length mismatch")
+            
+            # คำนวณยอดรวม
+            subtotal = sum(persons_list[i] * prices_list[i] for i in range(len(company_list)))
+            
+            # คำนวณส่วนลด
+            discount_amount = 0
+            if discount:
+                discount = discount.strip()
+                if discount.endswith('%'):
+                    # เปอร์เซ็นต์
+                    percentage = float(discount.replace('%', ''))
+                    discount_amount = subtotal * (percentage / 100)
+                else:
+                    # จำนวนเงิน
+                    discount_amount = float(discount)
+            
+            # ยอดสุทธิ
+            received = subtotal - discount_amount
+            
+            # เก็บ quantity เป็น comma-separated string
+            quantity_str = persons_str  # เก็บเป็น "1,2,3"
+            
+        except (ValueError, TypeError) as e:
+            return jsonify({"success": False, "message": f"Invalid motorbike data format: {str(e)}"})
+        
+        # เชื่อมต่อกับฐานข้อมูล
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # อัปเดตข้อมูลในฐานข้อมูล
+        query = """
+        UPDATE motorbike_rental SET
+            travel_date = %s,
+            pickup_time = %s,
+            customer_name = %s,
+            customer_surname = %s,
+            room = %s,
+            company_name = %s,
+            detail = %s,
+            quantity = %s,
+            received = %s,
+            payment_status = %s,
+            payment_method = %s,
+            staff_name = %s,
+            start_booking_date = %s,
+            end_booking_date = %s,
+            remark = %s,
+            discount = %s,
+            price = %s
+        WHERE booking_no = %s
+        """
+        
+        values = (
+            travel_date, pickup_time, customer_name, customer_surname,
+            room, 
+            companies,      # comma-separated companies: "Company A,Company B"
+            details,        # comma-separated details: "Detail A,Detail B"
+            quantity_str,   # comma-separated quantities: "1,2,3"
+            received,       # total amount after discount
+            payment_status, payment_method, staff_name,
+            start_booking_date, end_booking_date, remark, discount,
+            prices_str,     # comma-separated prices: "100.0,200.0"
+            booking_no
+        )
+        
+        cursor.execute(query, values)
+        conn.commit()
+        
+        updated = cursor.rowcount > 0
+        
+        cursor.close()
+        conn.close()
+        
+        if updated:
+            return jsonify({
+                "success": True, 
+                "message": "Motorbike booking successfully updated",
+                "total_amount": received,
+                "items_count": len(company_list)
+            })
+        else:
+            return jsonify({"success": False, "message": "No changes were made or booking not found"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
 
 @app.route("/export_motorbike", methods=["POST"])
 @login_required
