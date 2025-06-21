@@ -1535,11 +1535,23 @@ def export_tour():
         sheet.title = "Tour Bookings"
         
         # Headers (เหมือนเดิม แต่ลบ Type column)
+        # headers = [
+        #     "Travel Date", "Time", "Booking Date", "Booking No.", "Name&Surname", 
+        #     "Room", "Company Name", "Detail", "Quantity", "Price / Person", 
+        #     "Received", "Paid", "Amount", "Staff Name", "Payment Method", "Remark", "Discount"
+        # ]
+
         headers = [
             "Travel Date", "Time", "Booking Date", "Booking No.", "Name&Surname", 
-            "Room", "Company Name", "Detail", "Quantity", "Price / Person", 
-            "Received", "Paid", "Amount", "Staff Name", "Payment Method", "Remark", "Discount"
+            "Room", "Company Name", "Detail", "Quantity", "Price", "Discount", "Recieved"
         ]
+
+        if session.get('role') == 'admin':
+            headers.extend(["PAID", "AMOUNT"])
+
+        headers.extend([
+            "Payment Status", "Staff Name", "Payment Method", "Remark"
+        ])
         
         # Style headers (เหมือนเดิม)
         for col_num, header in enumerate(headers, 1):
@@ -1594,37 +1606,42 @@ def export_tour():
                 booking['detail'],               # Detail
                 booking['quantity'],             # Quantity
                 booking['price'],      # Price / Person
-                booking['received'],             # Received
-                paid_amount,                     # Paid
-                round(amount, 2),                # Amount
+                booking['discount'],
+                booking['received']             # Received
+            ]
+
+            if session.get('role') == 'admin':
+                row_data.extend([paid_amount, round(amount, 2)])
+
+            row_data.extend([
+                booking['payment_status'],
                 booking['staff_name'],            # Staff Name
                 booking['payment_method'],                
                 booking['remark'],
-                booking['discount']
-            ]
+            ])
             
             for col_num, cell_value in enumerate(row_data, 1):
                 cell = sheet.cell(row=row_num, column=col_num)
                 cell.value = cell_value
         
         # Add Total row (เหมือนเดิม แต่ปรับ column numbers)
-        if bookings:
+        if bookings and session.get('role') == 'admin':
             total_row = len(bookings) + 2
-            sheet.cell(row=total_row, column=9).value = "TOTAL"
-            sheet.cell(row=total_row, column=9).font = openpyxl.styles.Font(bold=True)
+            sheet.cell(row=total_row, column=11).value = "TOTAL"
+            sheet.cell(row=total_row, column=11).font = openpyxl.styles.Font(bold=True)
             
             start_data_row = 2
             end_data_row = total_row - 1
             
             # ปรับ column numbers สำหรับ formulas
-            sheet.cell(row=total_row, column=11).value = f"=SUM(K{start_data_row}:K{end_data_row})"  # Received
-            sheet.cell(row=total_row, column=11).font = openpyxl.styles.Font(bold=True)
-            
-            sheet.cell(row=total_row, column=12).value = f"=SUM(L{start_data_row}:L{end_data_row})"  # Paid
+            sheet.cell(row=total_row, column=12).value = f"=SUM(L{start_data_row}:L{end_data_row})"  # Received
             sheet.cell(row=total_row, column=12).font = openpyxl.styles.Font(bold=True)
             
-            sheet.cell(row=total_row, column=13).value = f"=SUM(M{start_data_row}:M{end_data_row})"  # Amount
+            sheet.cell(row=total_row, column=13).value = f"=SUM(M{start_data_row}:M{end_data_row})"  # Paid
             sheet.cell(row=total_row, column=13).font = openpyxl.styles.Font(bold=True)
+            
+            sheet.cell(row=total_row, column=14).value = f"=SUM(N{start_data_row}:N{end_data_row})"  # Amount
+            sheet.cell(row=total_row, column=14).font = openpyxl.styles.Font(bold=True)
         
         # Auto-size columns (เหมือนเดิม)
         for column in sheet.columns:
