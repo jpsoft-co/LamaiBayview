@@ -13,8 +13,8 @@ from psycopg2.extras import RealDictCursor
 import uuid
 import openpyxl
 import tempfile
-import win32com.client as win32
-import pythoncom 
+import subprocess
+import platform
 from openpyxl.drawing.image import Image
 
 from functools import wraps
@@ -843,50 +843,93 @@ def update_booking():
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
     
 # ---- EXCEL FORM GENERATION FUNCTIONALITY ----
-def convert_excel_to_pdf(excel_path):
-    """Convert Excel file to PDF using win32com"""
-    
-    # ⚠️ เพิ่มส่วนนี้ - Initialize COM
-    pythoncom.CoInitialize()
+def convert_excel_to_pdf_libreoffice(excel_path):
+    """Convert Excel file to PDF using LibreOffice headless"""
     
     try:
         # สร้าง PDF path
         pdf_path = excel_path.replace(".xlsx", ".pdf")
         
-        # เปิด Excel application
-        excel_app = None
-        wb = None
+        # แปลงเป็น absolute paths
+        excel_path = os.path.abspath(excel_path)
+        pdf_path = os.path.abspath(pdf_path)
         
-        try:
-            excel_app = win32.gencache.EnsureDispatch('Excel.Application')
-            excel_app.Visible = False  # ไม่ให้ Excel โผล่
-            excel_app.DisplayAlerts = False  # ปิด alerts
+        # ดึง directory ที่จะส่งออก PDF
+        output_dir = os.path.dirname(pdf_path)
+        
+        print(f"Converting: {excel_path}")
+        print(f"Output dir: {output_dir}")
+        print(f"Expected PDF: {pdf_path}")
+        
+        # รัน LibreOffice headless command
+        command = [
+            'libreoffice',
+            '--headless',
+            '--convert-to', 'pdf',
+            '--outdir', output_dir,
+            excel_path
+        ]
+        
+        # รันคำสั่งและรอให้เสร็จ
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=60  # timeout 60 วินาที
+        )
+        
+        print(f"LibreOffice command: {' '.join(command)}")
+        print(f"Return code: {result.returncode}")
+        print(f"STDOUT: {result.stdout}")
+        print(f"STDERR: {result.stderr}")
+        
+        # ตรวจสอบว่าคำสั่งสำเร็จ
+        if result.returncode == 0:
+            # ตรวจสอบว่าไฟล์ PDF ถูกสร้างขึ้น
+            if os.path.exists(pdf_path):
+                print(f"PDF created successfully: {pdf_path}")
+                return pdf_path
+            else:
+                print(f"PDF file not found at expected location: {pdf_path}")
+                return excel_path
+        else:
+            print(f"LibreOffice conversion failed with return code: {result.returncode}")
+            print(f"Error: {result.stderr}")
+            return excel_path
             
-            # เปิด workbook
-            wb = excel_app.Workbooks.Open(excel_path)
-            
-            # Export เป็น PDF (แบบง่าย - รองรับทุก Excel version)
-            wb.ExportAsFixedFormat(0, pdf_path)
-            
-            print(f"PDF created successfully: {pdf_path}")
+    except subprocess.TimeoutExpired:
+        print("LibreOffice conversion timed out")
+        return excel_path
+    except FileNotFoundError:
+        print("LibreOffice not found on system")
+        return excel_path
+    except Exception as e:
+        print(f"Error in LibreOffice conversion: {str(e)}")
+        return excel_path
 
-            return pdf_path
-            
-        finally:
-            # ปิด workbook และ application อย่างปลอดภัย
-            if wb:
-                wb.Close(SaveChanges=False)
-            if excel_app:
-                excel_app.Quit()
+def convert_excel_to_pdf(excel_path):
+    """Main PDF conversion function - only uses LibreOffice"""
+    return convert_excel_to_pdf_libreoffice(excel_path)
+
+def safe_convert_to_pdf(excel_path):
+    """Safe conversion with fallback to Excel if PDF fails"""
+    
+    try:
+        print("Attempting LibreOffice PDF conversion...")
+        result = convert_excel_to_pdf_libreoffice(excel_path)
+        
+        # ถ้าได้ PDF file กลับมา ถือว่าสำเร็จ
+        if result.endswith('.pdf') and os.path.exists(result):
+            print("PDF conversion successful")
+            return result
+        else:
+            print("PDF conversion failed, returning Excel file")
+            return excel_path
                 
     except Exception as e:
-        print(f"Error converting Excel to PDF: {str(e)}")
-        # ถ้าแปลงไม่ได้ ให้ส่ง Excel file เดิม
+        print(f"PDF conversion error: {str(e)}, returning Excel file")
         return excel_path
-    
-    finally:
-        # ⚠️ เพิ่มส่วนนี้ - Uninitialize COM
-        pythoncom.CoUninitialize()
+
 
 @app.route("/generate_excel_form", methods=["POST"])
 def generate_excel_form():
@@ -3031,77 +3074,6 @@ def update_transfer_booking():
     
     
 # ---- EXCEL FORM GENERATION FUNCTIONALITY ----
-def convert_excel_to_pdf_transfer(excel_path):
-    """Convert Excel file to PDF using win32com for Transfer bookings - Enhanced version"""
-    
-    # ⚠️ Initialize COM
-    pythoncom.CoInitialize()
-    
-    try:
-        # สร้าง PDF path และแปลงเป็น absolute path
-        pdf_path = os.path.abspath(excel_path.replace(".xlsx", ".pdf"))
-        excel_path = os.path.abspath(excel_path)
-        
-        # ตรวจสอบสิทธิ์ไฟล์
-        if not os.access(excel_path, os.R_OK):
-            raise PermissionError(f"Cannot read Excel file: {excel_path}")
-        
-        excel_app = None
-        wb = None
-        
-        try:
-            # สร้าง Excel application ใหม่
-            excel_app = win32.gencache.EnsureDispatch('Excel.Application')
-            excel_app.Visible = False
-            excel_app.DisplayAlerts = False
-            excel_app.ScreenUpdating = False  # ⚠️ เพิ่มเพื่อประสิทธิภาพ
-            
-            # เปิด workbook
-            wb = excel_app.Workbooks.Open(excel_path)
-            
-            # Export เป็น PDF
-            wb.ExportAsFixedFormat(0, pdf_path)
-            
-            print(f"Transfer PDF created successfully: {pdf_path}")
-            return pdf_path
-            
-        except Exception as e:
-            print(f"Error in Excel operations: {str(e)}")
-            raise e
-            
-        finally:
-            # ปิด workbook และ application อย่างระมัดระวัง
-            try:
-                if wb:
-                    wb.Close(SaveChanges=False)
-            except:
-                pass
-            
-            try:
-                if excel_app:
-                    excel_app.Quit()
-            except:
-                pass
-            
-            # ⚠️ บังคับปิด Excel process ถ้ายังค้าง
-            try:
-                import subprocess
-                subprocess.call("taskkill /f /im excel.exe", shell=True, 
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except:
-                pass
-                
-    except Exception as e:
-        print(f"Error converting Transfer Excel to PDF: {str(e)}")
-        # ถ้าแปลงไม่ได้ ให้ส่ง Excel file เดิม
-        return excel_path
-    
-    finally:
-        # ⚠️ Uninitialize COM
-        try:
-            pythoncom.CoUninitialize()
-        except:
-            pass
 
 @app.route("/generate_excel_form_transfer", methods=["POST"])
 def generate_excel_form_transfer():
@@ -3221,7 +3193,7 @@ def create_excel_form_transfer(booking):
         "pickup_time": ["H15", "H42"],
         "quantity": ["E17", "E44"],
         "received": ["H17", "H44"],
-        "detail": ["D16", "D19"],
+        "detail": ["D19", "D43"],
         "payment_status": ["D22", "D49"],
         "staff_name": ["B25", "B52"],
         "remark": ["D21", "D48"],
@@ -3950,6 +3922,31 @@ def update_room_data():
         return jsonify({"success": True, "message": "Room data updated successfully"})
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
+
+def test_libreoffice_installation():
+    """ทดสอบว่า LibreOffice ติดตั้งและใช้งานได้หรือไม่"""
+    
+    try:
+        result = subprocess.run(
+            ['libreoffice', '--version'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            print(f"LibreOffice is available: {result.stdout.strip()}")
+            return True
+        else:
+            print(f"LibreOffice not working: {result.stderr}")
+            return False
+            
+    except FileNotFoundError:
+        print("LibreOffice not installed")
+        return False
+    except Exception as e:
+        print(f"Error testing LibreOffice: {str(e)}")
+        return False
     
 if __name__ == "__main__":   
     app.run()
