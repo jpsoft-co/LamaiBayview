@@ -3376,7 +3376,7 @@ def export_transfers():
             tr.quantity, 
             tr.received,
             tr.payment_status,
-            tr.transfer_type,  # เปลี่ยนจาก departure, arrivals
+            tr.transfer_type,  -- เปลี่ยนจาก departure, arrivals
             tr.price,
             tr.payment_method,
             tr.remark,
@@ -3396,11 +3396,11 @@ def export_transfers():
             end_date = request.form.get('end_date', '')
             
             if start_date:
-                query += " AND tr.booking_date >= %s"
+                query += " AND tr.travel_date >= %s"
                 params.append(start_date)
             
             if end_date:
-                query += " AND tr.booking_date <= %s"
+                query += " AND tr.travel_date <= %s"
                 params.append(end_date)
                 
         elif filter_type == 'month':
@@ -3409,7 +3409,7 @@ def export_transfers():
             
             if start_month:
                 start_date = f"{start_month}-01"
-                query += " AND tr.booking_date >= %s"
+                query += " AND tr.travel_date >= %s"
                 params.append(start_date)
             
             if end_month:
@@ -3422,7 +3422,7 @@ def export_transfers():
                     next_month = month + 1
                 
                 end_date = f"{next_year}-{next_month:02d}-01"
-                query += " AND tr.booking_date < %s"
+                query += " AND tr.travel_date < %s"
                 params.append(end_date)
                 
         elif filter_type == 'year':
@@ -3431,12 +3431,12 @@ def export_transfers():
             
             if start_year:
                 start_date = f"{start_year}-01-01"
-                query += " AND tr.booking_date >= %s"
+                query += " AND tr.travel_date >= %s"
                 params.append(start_date)
             
             if end_year:
                 end_date = f"{int(end_year) + 1}-01-01"
-                query += " AND tr.booking_date < %s"
+                query += " AND tr.travel_date < %s"
                 params.append(end_date)
         
         # Apply transfer type filter
@@ -3483,10 +3483,17 @@ def export_transfers():
         
         # Add headers - Updated to match your requested format
         headers = [
-            "Booking date", "Booking No.", "Name&Surname", "Driver name", 
-            "Departure/Arrivals", "From", "To", "Detail", "Staff Name", 
-            "Person", "Price/Person", "Received", "Paid", "Amount", "Payment Method", "Remark", "Discount"
-        ]
+            "Booking date", "Booking No.", "Name&Surname", 
+            "Departure/Arrivals", "From", "To", "Detail", 
+            "Person", "Price", "Discount", "Received"
+            ]
+
+        if session.get('role') == 'admin':    
+            headers.extend(["Paid", "Amount"])
+
+        headers.extend([    
+            "Payment Status", "Staff Name", "Driver name", "Payment Method", "Remark"
+        ])
         
         # Style headers
         for col_num, header in enumerate(headers, 1):
@@ -3505,12 +3512,13 @@ def export_transfers():
             if isinstance(booking_date, (date, datetime)):
                 booking_date = booking_date.strftime("%d/%m/%Y")
             
-            # Calculate price per person
-            price_per_person = transfer['price'] if transfer['price'] else 0
+            # ✅ ดึง price มาตรงๆ จาก database
+            price = float(transfer['price']) if transfer['price'] else 0.0
             
             # Calculate amount (difference between received and paid)
-            paid_amount = transfer['paid'] if transfer['paid'] else 0
-            amount = transfer['received'] - paid_amount
+            paid_amount = float(transfer['paid']) if transfer['paid'] else 0.0
+            received_amount = float(transfer['received']) if transfer['received'] else 0.0
+            amount = received_amount - paid_amount
             
             # Full name
             full_name = f"{transfer['customer_name']} {transfer['customer_surname']}"
@@ -3522,26 +3530,32 @@ def export_transfers():
             elif transfer['transfer_type'] == 'arrivals':
                 transfer_type_text = "Arrivals"
             
+            
             # Add row data
             row_data = [
                 booking_date,                    # Booking date
                 transfer['booking_no'],          # Booking No.
                 full_name,                       # Name&Surname
-                transfer['driver_name'] or '',   # Driver name
                 transfer_type_text,              # Departure/Arrivals
                 transfer['place_from'],          # From
                 transfer['place_to'],            # To
                 transfer['detail'] or '',        # Detail
-                transfer['staff_name'],          # Staff Name
-                transfer['quantity'],            # Person
-                price_per_person,      # Price/Person
-                transfer['received'],            # Received
-                paid_amount,                     # Paid
-                round(amount, 2),                 # Amount (Received - Paid)
-                transfer['payment_method'],
-                transfer['remark'],
-                transfer['discount']
+                transfer['quantity'], 
+                price,
+                transfer['discount'],
+                received_amount  
             ]
+            
+            if session.get('role') == 'admin':
+                row_data.extend([paid_amount, round(amount, 2)])
+
+            row_data.extend([
+                transfer['payment_status'],
+                transfer['staff_name'], 
+                transfer['driver_name'] or '',   # Driver name
+                transfer['payment_method'],      # Payment Method
+                transfer['remark'],              # Remark
+            ])
             
             for col_num, cell_value in enumerate(row_data, 1):
                 cell = sheet.cell(row=row_num, column=col_num)
@@ -3567,19 +3581,33 @@ def export_transfers():
             sheet.column_dimensions[column_letter].width = adjusted_width
 
         # Add TOTAL row at the end of data
-        total_row = len(transfers) + 2
-        sheet.cell(row=total_row, column=11).value = "Total"
-        sheet.cell(row=total_row, column=11).font = openpyxl.styles.Font(bold=True)
+        if transfers and session.get('role') == 'admin':  # ✅ เพิ่มการตรวจสอบว่ามีข้อมูลหรือไม่
+            total_row = len(transfers) + 2
+            sheet.cell(row=total_row, column=10).value = "TOTAL"  # ✅ เปลี่ยนจาก column 11 เป็น 10 (Person column)
+            sheet.cell(row=total_row, column=10).font = openpyxl.styles.Font(bold=True)
 
-        # SUM formulas for columns M (13), N (14), and O (15)
-        sheet.cell(row=total_row, column=12).value = f"=SUM(L2:L{total_row - 1})"
-        sheet.cell(row=total_row, column=13).value = f"=SUM(M2:M{total_row - 1})"
-        sheet.cell(row=total_row, column=14).value = f"=SUM(N2:N{total_row - 1})"
-        # Optional styling for TOTAL row
-        for col in range(11, 15):
-            cell = sheet.cell(row=total_row, column=col)
-            cell.fill = openpyxl.styles.PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
-            cell.font = openpyxl.styles.Font(bold=True)
+            # ✅ SUM formulas for columns 11, 12, 13, 14 (Price, Received, Paid, Amount)
+            start_data_row = 2
+            end_data_row = total_row - 1
+            
+            # Price total
+            sheet.cell(row=total_row, column=11).value = f"=SUM(K{start_data_row}:K{end_data_row})"
+            sheet.cell(row=total_row, column=11).font = openpyxl.styles.Font(bold=True)
+            
+            # Received total
+            sheet.cell(row=total_row, column=12).value = f"=SUM(L{start_data_row}:L{end_data_row})"
+            sheet.cell(row=total_row, column=12).font = openpyxl.styles.Font(bold=True)
+            
+            # Paid total
+            sheet.cell(row=total_row, column=13).value = f"=SUM(M{start_data_row}:M{end_data_row})"
+            sheet.cell(row=total_row, column=13).font = openpyxl.styles.Font(bold=True)
+            
+            
+            # ✅ Optional styling for TOTAL row
+            for col in range(10, 14):  # columns 10-14
+                cell = sheet.cell(row=total_row, column=col)
+                cell.fill = openpyxl.styles.PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+                cell.font = openpyxl.styles.Font(bold=True)
 
         # Create temporary file
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
