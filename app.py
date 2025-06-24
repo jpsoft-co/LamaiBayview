@@ -1763,7 +1763,7 @@ def export_tour():
         ]
 
         if session.get('role') == 'admin':
-            headers.extend(["Cost", "AMOUNT"])
+            headers.extend(["Cost", "Amount"])
 
         headers.extend([
             "Payment Status", "Staff Name", "Payment Method", "Remark"
@@ -1808,10 +1808,10 @@ def export_tour():
             
             paid_amount = booking['paid'] if booking['paid'] else 0
             
-            if booking['payment_status'] != "paid" or booking['payment_status'] != "unpaid":
-                amount = booking['received'] - paid_amount
+            if booking['payment_status'].lower().startswith('cancelled'):
+                amount = 0  # cancel = 0
             else:
-                amount = 0
+                amount = booking['received'] - paid_amount  # paid หรือ unpaid = received - paid
 
             full_name = f"{booking['customer_name']} {booking['customer_surname']}"
             
@@ -2504,7 +2504,7 @@ def export_motorbike():
                     next_month = month + 1
                 
                 end_date = f"{next_year}-{next_month:02d}-01"
-                query += " AND tr.travel_date < %s"
+                query += " AND travel_date < %s"
                 params.append(end_date)
                 
         elif filter_type == 'year':
@@ -2513,12 +2513,12 @@ def export_motorbike():
             
             if start_year:
                 start_date = f"{start_year}-01-01"
-                query += " AND tr.travel_date >= %s"
+                query += " AND travel_date >= %s"
                 params.append(start_date)
             
             if end_year:
                 end_date = f"{int(end_year) + 1}-01-01"
-                query += " AND tr.travel_date < %s"
+                query += " AND travel_date < %s"
                 params.append(end_date)
         
         # Apply payment status filter
@@ -2545,11 +2545,11 @@ def export_motorbike():
         # Headers
         headers = [
             "Travel Date", "Time", "Booking Date", "Booking No.", "Name&Surname", 
-            "Room", "Company Name", "Detail", "Quantity", "Price", "Discount", "Recieved"
+            "Room", "Company Name", "Detail", "Quantity", "Price", "Discount", "Selling Price"
         ]
 
         if session.get('role') == 'admin':
-            headers.extend(["PAID", "AMOUNT"])
+            headers.extend(["Cost", "Amount"])
 
         headers.extend([
             "Payment Status", "Staff Name", "Payment Method", "Remark"
@@ -2668,7 +2668,10 @@ def export_motorbike():
                 try:
                     received_float = float(booking['received']) if booking['received'] else 0
                     paid_total = sum(float(p) for p in paid_list)
-                    amount = round(received_float - paid_total, 2)
+                    if booking['payment_status'].lower().startswith('cancelled'):
+                        amount = 0  # cancel = 0
+                    else:
+                        amount = round(received_float - paid_total, 2)  # paid หรือ unpaid = received - paid
                 except Exception:
                     amount = 0
 
@@ -2952,6 +2955,7 @@ def submit_transfer_booking():
         print(f"Error in submit_transfer_booking: {str(e)}")  # Debug
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
 
+# ✅ แก้ไข route home_transfer_form()
 @app.route("/home_transfer_form")
 @login_required
 def home_transfer_form():
@@ -2972,6 +2976,10 @@ def home_transfer_form():
         
         cursor.execute(query)
         bookings = cursor.fetchall()
+        
+        # ✅ เพิ่มส่วนนี้ - ดึง booking_list สำหรับ dropdown
+        cursor.execute("SELECT DISTINCT booking_no, customer_name, customer_surname FROM transfer_rental ORDER BY booking_no DESC")
+        booking_list = cursor.fetchall()
         
         # Format dates and times
         for booking in bookings:
@@ -3015,37 +3023,54 @@ def home_transfer_form():
         cursor.close()
         conn.close()
         
+        # ✅ เพิ่ม booking_list ในการ return
         return render_template('P2_home_transfer_form.html', 
                              transfers=bookings,
+                             booking_list=booking_list,  # ✅ เพิ่มบรรทัดนี้
                              departure_destinations=departure_destinations,
                              arrival_origins=arrival_origins)
     
     except Exception as e:
         return f"Error: {str(e)}"
 
-# Add search functionality for transfer bookings
-@app.route("/search_transfer_bookings", methods=["POST"])
+
+# ✅ แก้ไข route search_transfer_bookings() ที่มีอยู่แล้ว
+@app.route("/search_transfer_bookings", methods=["GET", "POST"])
 @login_required
 def search_transfer_bookings():
     try:
+        # ✅ เพิ่มส่วนนี้ - ดึง booking_list สำหรับ dropdown (ใช้ทั้ง GET และ POST)
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # ดึง booking list สำหรับ dropdown
+        cursor.execute("SELECT DISTINCT booking_no, customer_name, customer_surname FROM transfer_rental ORDER BY booking_no DESC")
+        booking_list = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
         if request.method == "POST":
-            # Get search parameters
-            start_date = request.form.get('travel_date', '')
-            end_date = request.form.get('travel_date', '')
+            # รับค่าจากฟอร์มค้นหา
+            start_date = request.form.get('start_date', '')
+            end_date = request.form.get('end_date', '')
+            booking_no = request.form.get('booking_no', '')
+            name_surname = request.form.get('name_surname', '')
             
-            # Connect to database
+            # เชื่อมต่อกับฐานข้อมูล
             conn = get_db_connection()
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             
-            # Base query
             query = """
-            SELECT * FROM transfer_rental
+            SELECT 
+                *
+            FROM transfer_rental
             WHERE 1=1
             """
             
             params = []
             
-            # Add search conditions
+            # เพิ่มเงื่อนไขการค้นหา
             if start_date:
                 query += " AND travel_date >= %s"
                 params.append(start_date)
@@ -3054,30 +3079,50 @@ def search_transfer_bookings():
                 query += " AND travel_date <= %s"
                 params.append(end_date)
             
+            if booking_no:
+                query += " AND booking_no = %s"
+                params.append(booking_no)
+                
+            if name_surname:
+                # แยกชื่อและนามสกุล
+                name_parts = name_surname.strip().split(' ', 1)
+                if len(name_parts) == 2:
+                    first_name, last_name = name_parts
+                    query += " AND customer_name = %s AND customer_surname = %s"
+                    params.extend([first_name, last_name])
+                else:
+                    # ถ้าไม่สามารถแยกได้ ให้ค้นหาจากชื่อเต็ม
+                    query += " AND CONCAT(customer_name, ' ', customer_surname) = %s"
+                    params.append(name_surname)
+            
             query += " ORDER BY travel_date DESC, booking_no DESC"
             
             cursor.execute(query, params)
             bookings = cursor.fetchall()
             
-            # Format dates and times
+            # แปลงรูปแบบวันที่และเวลา (เหมือนเดิม)
             for booking in bookings:
                 if booking['travel_date']:
                     booking['travel_date'] = booking['travel_date'].strftime('%d/%m/%Y')
                 if booking['booking_date']:
                     booking['booking_date'] = booking['booking_date'].strftime('%d/%m/%Y')
                 
-                # Handle pickup_time formatting
                 if booking['pickup_time']:
                     if hasattr(booking['pickup_time'], 'strftime'):
                         booking['pickup_time'] = booking['pickup_time'].strftime('%H:%M')
                     else:
-                        # If it's a timedelta
                         total_seconds = int(booking['pickup_time'].total_seconds())
                         hours = total_seconds // 3600
                         minutes = (total_seconds % 3600) // 60
                         booking['pickup_time'] = f"{hours:02d}:{minutes:02d}"
             
-            # ดึงข้อมูลจาก transfer_tabel สำหรับ dropdown ใน edit modal
+            cursor.close()
+            conn.close()
+            
+            # ดึงข้อมูลเพิ่มเติมสำหรับ dropdown ใน edit modal
+            conn = get_db_connection()
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
             departure_query = """
             SELECT DISTINCT place_to as destination, passengers, received, paid 
             FROM transfer_tabel 
@@ -3099,14 +3144,18 @@ def search_transfer_bookings():
             cursor.close()
             conn.close()
             
+            # ✅ เพิ่ม booking_list ในการ return
             return render_template('P2_home_transfer_form.html', 
                                  transfers=bookings,
+                                 booking_list=booking_list,  # ✅ เพิ่มบรรทัดนี้
                                  departure_destinations=departure_destinations,
                                  arrival_origins=arrival_origins,
                                  search_start_date=start_date, 
-                                 search_end_date=end_date)
+                                 search_end_date=end_date, 
+                                 search_booking_no=booking_no,
+                                 search_name_surname=name_surname)
         else:
-            # If GET request, redirect to main form
+            # ✅ GET request - ใช้ booking_list ที่ดึงมาแล้ว
             return redirect(url_for('home_transfer_form'))
     
     except Exception as e:
@@ -3637,11 +3686,11 @@ def export_transfers():
         headers = [
             "Booking date", "Booking No.", "Name&Surname", 
             "Departure/Arrivals", "From", "To", "Detail", 
-            "Person", "Price", "Discount", "Received"
+            "Person", "Price", "Discount", "Selling Price"
             ]
 
         if session.get('role') == 'admin':    
-            headers.extend(["Paid", "Amount"])
+            headers.extend(["Cost", "Amount"])
 
         headers.extend([    
             "Payment Status", "Staff Name", "Driver name", "Payment Method", "Remark"
@@ -3670,7 +3719,10 @@ def export_transfers():
             # Calculate amount (difference between received and paid)
             paid_amount = float(transfer['paid']) if transfer['paid'] else 0.0
             received_amount = float(transfer['received']) if transfer['received'] else 0.0
-            amount = received_amount - paid_amount
+            if transfer['payment_status'].lower().startswith('cancelled'):
+                amount = 0  # cancel = 0
+            else:
+                amount = received_amount - paid_amount  # paid หรือ unpaid = received - paid
             
             # Full name
             full_name = f"{transfer['customer_name']} {transfer['customer_surname']}"

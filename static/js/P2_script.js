@@ -1,4 +1,4 @@
-// P2_scripts.js - Enhanced version with discount support
+// P2_scripts.js - Enhanced version with discount support and search functionality
 // ✅ Global variables to track current mode
 let fromInputMode = 'dropdown'; // 'dropdown' or 'custom'
 let toInputMode = 'dropdown';   // 'dropdown' or 'custom'
@@ -58,7 +58,6 @@ function toggleToInput(mode) {
     }
 }
 
-
 document.addEventListener('DOMContentLoaded', function() {
 
     setStaffNameAuto();
@@ -75,6 +74,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Initialize discount validation
     initializeDiscountValidation();
+
+    // ✅ Initialize search functionality
+    initializeSearchFunctionality();
 
     // Calculate total when price or discount change (เอา persons listener ออก)
     const priceInput = document.getElementById('price');
@@ -139,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 // Hide loading overlay
-                if (loadingOverlay) {
+                if (typeof loadingOverlay !== 'undefined' && loadingOverlay) {
                     loadingOverlay.style.display = 'none';
                 }
                 
@@ -161,7 +163,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 // Hide loading overlay
-                if (loadingOverlay) {
+                if (typeof loadingOverlay !== 'undefined' && loadingOverlay) {
                     loadingOverlay.style.display = 'none';
                 }
                 
@@ -213,9 +215,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Add event listener for persons field in edit modal
-
     const editDiscountInput = document.getElementById('edit_discount');
     const editPriceInput = document.getElementById('edit_price');
+    const editPersonsInput = document.getElementById('edit_persons');
     
     if (editPersonsInput) {
         editPersonsInput.addEventListener('input', calculateEditTotal);
@@ -238,6 +240,120 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 });
+
+// ===============================================
+// 🆕 SEARCH FUNCTIONALITY (เพิ่มใหม่เหมือน P1)
+// ===============================================
+
+/**
+ * เริ่มต้นการทำงานของ search functionality
+ */
+function initializeSearchFunctionality() {
+    const bookingNoInput = document.getElementById('booking_no');
+    const nameSurnameInput = document.getElementById('name_surname');
+    
+    if (bookingNoInput) {
+        bookingNoInput.addEventListener('input', handleBookingNoSearch);
+    }
+    
+    if (nameSurnameInput) {
+        nameSurnameInput.addEventListener('input', handleNameSurnameSearch);
+    }
+}
+
+/**
+ * จัดการการค้นหาด้วย Booking Number
+ */
+function handleBookingNoSearch() {
+    const bookingNoInput = document.getElementById('booking_no');
+    const bookingNoList = document.getElementById('booking_no_list');
+    
+    if (!bookingNoInput || !bookingNoList) return;
+    
+    const inputValue = bookingNoInput.value.toLowerCase();
+    const options = bookingNoList.querySelectorAll('option');
+    
+    // เมื่อผู้ใช้เลือกค่าจาก datalist
+    options.forEach(option => {
+        if (option.value.toLowerCase() === inputValue) {
+            // ดึงข้อมูลชื่อจาก option text
+            const optionText = option.textContent || option.innerText;
+            const namePart = optionText.split(' - ')[1]; // "H250101001 - John Smith" -> "John Smith"
+            
+            if (namePart) {
+                const nameSurnameInput = document.getElementById('name_surname');
+                if (nameSurnameInput) {
+                    nameSurnameInput.value = namePart;
+                }
+            }
+        }
+    });
+}
+
+/**
+ * จัดการการค้นหาด้วย Name & Surname
+ */
+function handleNameSurnameSearch() {
+    const nameSurnameInput = document.getElementById('name_surname');
+    const nameSurnameList = document.getElementById('name_surname_list');
+    
+    if (!nameSurnameInput || !nameSurnameList) return;
+    
+    const inputValue = nameSurnameInput.value.toLowerCase();
+    const options = nameSurnameList.querySelectorAll('option');
+    
+    // เมื่อผู้ใช้เลือกค่าจาก datalist
+    options.forEach(option => {
+        if (option.value.toLowerCase() === inputValue) {
+            // ดึงข้อมูล booking number จาก option text
+            const optionText = option.textContent || option.innerText;
+            const bookingPart = optionText.split(' - ')[0]; // "H250101001 - John Smith" -> "H250101001"
+            
+            if (bookingPart) {
+                const bookingNoInput = document.getElementById('booking_no');
+                if (bookingNoInput) {
+                    bookingNoInput.value = bookingPart;
+                }
+            }
+        }
+    });
+}
+
+/**
+ * ฟังก์ชันสำหรับ clear search fields
+ */
+function clearSearchFields() {
+    const bookingNoInput = document.getElementById('booking_no');
+    const nameSurnameInput = document.getElementById('name_surname');
+    
+    if (bookingNoInput) {
+        bookingNoInput.value = '';
+    }
+    
+    if (nameSurnameInput) {
+        nameSurnameInput.value = '';
+    }
+}
+
+/**
+ * ฟังก์ชันตรวจสอบการค้นหา - ใช้ได้ทั้ง manual input และ datalist selection
+ */
+function validateSearchInput() {
+    const bookingNoInput = document.getElementById('booking_no');
+    const nameSurnameInput = document.getElementById('name_surname');
+    
+    let hasSearchCriteria = false;
+    
+    if (bookingNoInput && bookingNoInput.value.trim()) {
+        hasSearchCriteria = true;
+    }
+    
+    if (nameSurnameInput && nameSurnameInput.value.trim()) {
+        hasSearchCriteria = true;
+    }
+    
+    return hasSearchCriteria;
+}
 
 // ===============================================
 // ENHANCED DISCOUNT CALCULATION FUNCTIONS
@@ -436,8 +552,6 @@ function updateTransferOptions() {
     
     // Reset toggle buttons to dropdown mode
     resetToggleButtons();
-    
-    // ✅ ไม่ต้อง setTimeout แล้ว เพราะจะ clear ฟิลด์แล้ว
 }
 
 // ✅ Reset toggle buttons to dropdown mode
@@ -530,14 +644,28 @@ function updatePriceInfo() {
     }
 }
 
+// ✅ ฟังก์ชันสำหรับ clear ฟิลด์เมื่อไม่มีการเลือก
+function clearFormFields() {
+    const priceField = document.getElementById('price');
+    const personsField = document.getElementById('persons');
+    const receivedField = document.getElementById('received');
+    
+    if (priceField) priceField.value = '';
+    if (personsField) personsField.value = '';
+    if (receivedField) receivedField.value = '';
+}
+
+// ✅ แก้ไข clearPriceInfo ให้ clear ฟิลด์ด้วย
 function clearPriceInfo() {
     const priceInfo = document.getElementById('priceInfo');
     const receivedField = document.getElementById('received');
     
     if (priceInfo) priceInfo.style.display = 'none';
     if (receivedField) receivedField.value = '';
+    
+    // ✅ เมื่อไม่มีข้อมูล route ให้ clear ฟิลด์ทั้งหมด
+    clearFormFields();
 }
-
 
 // แก้ไขฟังก์ชัน calculateTotal() - ไม่คูณจำนวนคน แค่ใช้ราคาต่อคนโดยตรง
 function calculateTotal() {
@@ -636,9 +764,9 @@ function validateTransferForm() {
     return true;
 }
 
-// แสดงข้อความแจ้งเตือน
+// ✅ Fixed showAlert function with proper notification system detection
 function showAlert(message, type) {
-    // แปลงประเภทการแจ้งเตือนจากฟังก์ชันเดิมเป็นประเภทที่ใช้ในระบบใหม่
+    // แปลงประเภทการแจ้งเตือน
     let notificationType;
     switch (type) {
         case 'success':
@@ -657,12 +785,17 @@ function showAlert(message, type) {
             notificationType = 'info';
     }
     
-    // แสดงการแจ้งเตือนด้วยระบบใหม่
-    if (typeof showNotification === 'function') {
+    // ลองหาฟังก์ชัน notification ที่มีอยู่จริง
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(message, notificationType, 5000, true);
+    } else if (typeof showNotification === 'function') {
         showNotification(message, notificationType, 5000, true);
+    } else if (typeof window.Notification !== 'undefined' && typeof window.Notification.show === 'function') {
+        window.Notification.show(message, notificationType, 5000, true);
     } else {
         // Fallback to alert if notification system not available
         alert(message);
+        console.log('Notification fallback used:', message, type);
     }
     
     // สำหรับความเข้ากันได้กับระบบเดิม
@@ -673,10 +806,10 @@ function showAlert(message, type) {
 }
 
 // ===============================================
-// UPDATED TRANSFER CANCEL FUNCTION WITH NAME INPUT MODAL
+// TRANSFER CANCEL FUNCTION WITH NAME INPUT MODAL
 // ===============================================
 
-// ฟังก์ชันสำหรับการยกเลิกการจอง Transfer - อัพเดตเวอร์ชัน
+// ฟังก์ชันสำหรับการยกเลิกการจอง Transfer
 function cancelTransfer() {
     const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
     
@@ -690,7 +823,6 @@ function cancelTransfer() {
 }
 
 // ฟังก์ชันแสดง modal สำหรับกรอกชื่อผู้ cancel (Transfer)
-// ฟังก์ชันแสดง modal สำหรับกรอกชื่อผู้ cancel (Transfer) - แก้ไขแล้ว
 function showTransferCancelModal(selectedBookings) {
     // สร้าง modal element
     const modalHtml = `
@@ -756,13 +888,6 @@ function showTransferCancelModal(selectedBookings) {
             });
         }
     }, 100);
-   
-    // เพิ่ม event listener สำหรับ Enter key
-    document.getElementById('transferCancelName').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            confirmTransferCancel();
-        }
-    });
 }
 
 // ฟังก์ชันปิด transfer cancel modal
@@ -949,30 +1074,6 @@ function updateEditPriceInfo() {
         if (receivedField) receivedField.value = '';
     }
 }
-
-// ✅ ฟังก์ชันสำหรับ clear ฟิลด์เมื่อไม่มีการเลือก
-function clearFormFields() {
-    const priceField = document.getElementById('price');
-    const personsField = document.getElementById('persons');
-    const receivedField = document.getElementById('received');
-    
-    if (priceField) priceField.value = '';
-    if (personsField) personsField.value = '';
-    if (receivedField) receivedField.value = '';
-}
-
-// ✅ แก้ไข clearPriceInfo ให้ clear ฟิลด์ด้วย
-function clearPriceInfo() {
-    const priceInfo = document.getElementById('priceInfo');
-    const receivedField = document.getElementById('received');
-    
-    if (priceInfo) priceInfo.style.display = 'none';
-    if (receivedField) receivedField.value = '';
-    
-    // ✅ เมื่อไม่มีข้อมูล route ให้ clear ฟิลด์ทั้งหมด
-    clearFormFields();
-}
-
 
 // 🆕 Enhanced Calculate total amount for edit modal with discount support
 function calculateEditTotal() {
@@ -1267,7 +1368,6 @@ function saveTransfer() {
     });
 }
 
-
 // Function to generate and download Excel form
 function printToExcel() {
     const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
@@ -1357,35 +1457,6 @@ function downloadTransferFile(url, bookingNo, fileType) {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-}
-
-// ⚠️ เพิ่มฟังก์ชันสำหรับเปิด PDF ในหน้าใหม่โดยตรง (optional)
-function openTransferPdfInNewTab() {
-    const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
-    
-    if (selectedBookings.length === 0) {
-        showAlert('กรุณาเลือกรายการที่ต้องการดู PDF', 'info');
-        return;
-    }
-    
-    if (selectedBookings.length > 1) {
-        showAlert('กรุณาเลือกเพียงรายการเดียวเท่านั้น', 'info');
-        return;
-    }
-    
-    const bookingNo = selectedBookings[0].value;
-    
-    // สร้าง URL สำหรับเปิด PDF โดยตรง
-    const pdfUrl = `/generate_excel_form_transfer?booking_no=${bookingNo}&format=pdf`;
-    
-    // เปิดใน tab ใหม่
-    const newTab = window.open(pdfUrl, '_blank');
-    if (newTab) {
-        newTab.focus();
-        showAlert('กำลังเปิด Transfer PDF ในแท็บใหม่...', 'info');
-    } else {
-        showAlert('กรุณาอนุญาตการเปิดป็อปอัพสำหรับเว็บไซต์นี้', 'warning');
-    }
 }
 
 // ฟังก์ชันสำหรับเปิด Modal Export
@@ -1668,7 +1739,7 @@ function handleEditToChange() {
 }
 
 // ===============================================
-// USER INFO FUNCTIONS (เพิ่มใหม่)
+// USER INFO FUNCTIONS
 // ===============================================
 
 /**
@@ -1694,7 +1765,7 @@ function getCurrentUser() {
 /**
  * ตั้งค่า Staff Name อัตโนมัติสำหรับ Transfer
  */
-function setTransferStaffNameAuto() {
+function setStaffNameAuto() {
     const staffNameField = document.getElementById('staffName');
     const editStaffNameField = document.getElementById('edit_staffName');
     

@@ -318,6 +318,44 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
+                            <label class="form-label" for="booking_no">Booking No</label>
+                            <input type="text" 
+                                class="form-control" 
+                                id="booking_no" 
+                                name="booking_no" 
+                                placeholder="Enter booking number (e.g., H250101001)"
+                                value="{{ search_booking_no if search_booking_no else '' }}"
+                                list="booking_no_list">
+                            
+                            <!-- Datalist สำหรับ autocomplete -->
+                            <datalist id="booking_no_list">
+                                {% for transfer in booking_list|default([]) %}
+                                <option value="{{ transfer.booking_no }}">{{ transfer.booking_no }} - {{ transfer.customer_name }} {{ transfer.customer_surname }}</option>
+                                {% endfor %}
+                            </datalist>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="name_surname">Name & Surname</label>
+                            <input type="text" 
+                                class="form-control" 
+                                id="name_surname" 
+                                name="name_surname" 
+                                placeholder="Enter customer name (e.g., John Smith)"
+                                value="{{ search_name_surname if search_name_surname else '' }}"
+                                list="name_surname_list">
+                            
+                            <!-- Datalist สำหรับ autocomplete -->
+                            <datalist id="name_surname_list">
+                                {% for transfer in booking_list|default([]) %}
+                                <option value="{{ transfer.customer_name }} {{ transfer.customer_surname }}">{{ transfer.booking_no }} - {{ transfer.customer_name }} {{ transfer.customer_surname }}</option>
+                                {% endfor %}
+                            </datalist>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
                             <label class="form-label">Transfer Type</label>
                             <div class="radio-group">
                                 <label class="radio-option">

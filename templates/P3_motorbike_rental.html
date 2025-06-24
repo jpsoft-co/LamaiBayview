@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/notification_style.css') }}">  
     <link rel="stylesheet" href="{{ url_for('static', filename='css/loading.css') }}">    
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
     /* CSS Variables */
 :root {
@@ -507,5 +508,15 @@
 <script src="{{ url_for('static', filename='js/loading.js') }}"></script>
 <!-- เปลี่ยนจาก P1P3_script.js เป็น P3_script.js -->
 <script src="{{ url_for('static', filename='js/P3_script.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('#room').select2({
+        placeholder: "-- Select or Search Room --",
+        allowClear: true,
+        width: '100%'
+    });
+});
+</script>
 </body>
 </html>
