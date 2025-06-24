@@ -60,6 +60,9 @@ function toggleToInput(mode) {
 
 
 document.addEventListener('DOMContentLoaded', function() {
+
+    setStaffNameAuto();
+
     // Set current date as travel date
     const today = new Date().toISOString().split('T')[0];
     const travelDateField = document.getElementById('travel_date');
@@ -687,6 +690,7 @@ function cancelTransfer() {
 }
 
 // ฟังก์ชันแสดง modal สำหรับกรอกชื่อผู้ cancel (Transfer)
+// ฟังก์ชันแสดง modal สำหรับกรอกชื่อผู้ cancel (Transfer) - แก้ไขแล้ว
 function showTransferCancelModal(selectedBookings) {
     // สร้าง modal element
     const modalHtml = `
@@ -707,7 +711,11 @@ function showTransferCancelModal(selectedBookings) {
                                placeholder="Enter your name" 
                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
                                maxlength="50"
+                               readonly
                                required>
+                        <small style="color: #666; font-size: 11px; margin-top: 4px; display: block;">
+                            Auto-filled from your login account
+                        </small>
                     </div>
                     <p style="color: #666; font-size: 12px; margin-top: 8px;">
                         This will update the payment status to "Cancelled by [Your Name]"
@@ -732,14 +740,23 @@ function showTransferCancelModal(selectedBookings) {
     // เพิ่ม modal ไปยัง body
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
-    // focus ที่ input field
+    // ✅ ตั้งค่าชื่อ auto หลังจากสร้าง modal แล้ว
+    setTimeout(() => {
+        setTransferCancelNameAuto();
+    }, 100);
+    
+    // เพิ่ม event listener สำหรับ Enter key
     setTimeout(() => {
         const nameInput = document.getElementById('transferCancelName');
         if (nameInput) {
-            nameInput.focus();
+            nameInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    confirmTransferCancel();
+                }
+            });
         }
     }, 100);
-    
+   
     // เพิ่ม event listener สำหรับ Enter key
     document.getElementById('transferCancelName').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
@@ -1144,9 +1161,12 @@ function editTransfer() {
                 document.getElementById('edit_status').value = booking.payment_status || 'unpaid';
             }
             
-            if (document.getElementById('edit_staffName')) {
-                document.getElementById('edit_staffName').value = booking.staff_name || '';
-            }
+            getCurrentUser().then(user => {
+                const editStaffName = document.getElementById('edit_staffName');
+                if (editStaffName && user && user.full_name) {
+                    editStaffName.value = user.full_name;
+                }
+            });
             
             // ข้อมูลคนขับ
             if (document.getElementById('edit_driverName')) {
@@ -1644,5 +1664,71 @@ function handleEditToChange() {
     if (selectedDropdown && customInput && selectedDropdown.value !== 'custom') {
         customInput.value = selectedDropdown.value;
         updateEditPriceInfo();
+    }
+}
+
+// ===============================================
+// USER INFO FUNCTIONS (เพิ่มใหม่)
+// ===============================================
+
+/**
+ * ดึงข้อมูล user ปัจจุบันจาก server
+ */
+function getCurrentUser() {
+    return fetch('/api/current_user')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                return data.user;
+            } else {
+                console.error('Error getting current user:', data.message);
+                return null;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching current user:', error);
+            return null;
+        });
+}
+
+/**
+ * ตั้งค่า Staff Name อัตโนมัติสำหรับ Transfer
+ */
+function setTransferStaffNameAuto() {
+    const staffNameField = document.getElementById('staffName');
+    const editStaffNameField = document.getElementById('edit_staffName');
+    
+    // ถ้ามีข้อมูลใน template แล้ว (จาก context processor) ไม่ต้องทำอะไร
+    if (staffNameField && staffNameField.value) {
+        return Promise.resolve();
+    }
+    
+    // ถ้าไม่มี ให้ดึงจาก API
+    return getCurrentUser().then(user => {
+        if (user && user.full_name) {
+            if (staffNameField) {
+                staffNameField.value = user.full_name;
+            }
+            if (editStaffNameField) {
+                editStaffNameField.value = user.full_name;
+            }
+        }
+    });
+}
+
+/**
+ * ตั้งค่า Cancel Name อัตโนมัติสำหรับ Transfer
+ */
+function setTransferCancelNameAuto() {
+    const cancelNameField = document.getElementById('transferCancelName');
+    
+    if (cancelNameField) {
+        getCurrentUser().then(user => {
+            if (user && user.full_name) {
+                cancelNameField.value = user.full_name;
+                // ลบสี error ถ้ามี
+                cancelNameField.style.borderColor = '';
+            }
+        });
     }
 }

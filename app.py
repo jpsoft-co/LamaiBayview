@@ -39,21 +39,31 @@ def login_required(f):
 # ---------------------------------------Connect database ---------------------------------------
 
 # Database connection
-def get_db_connection():
-    database_url = os.getenv("DATABASE_URL")
+# def get_db_connection():
+#     database_url = os.getenv("DATABASE_URL")
     
-    if database_url:
-        # สำหรับ Render.com
-        return psycopg2.connect(database_url)
-    else:
-        # สำหรับ local development
-        return psycopg2.connect(
-            host=os.getenv("DB_HOST"),
-            port=int(os.getenv("DB_PORT", 5432)),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASS"),
-            database=os.getenv("DB_NAME")
-        )
+#     if database_url:
+#         # สำหรับ Render.com
+#         return psycopg2.connect(database_url)
+#     else:
+#         # สำหรับ local development
+#         return psycopg2.connect(
+#             host=os.getenv("DB_HOST"),
+#             port=int(os.getenv("DB_PORT", 5432)),
+#             user=os.getenv("DB_USER"),
+#             password=os.getenv("DB_PASS"),
+#             database=os.getenv("DB_NAME")
+#         )
+
+def get_db_connection():
+    return psycopg2.connect(
+        host="dpg-d0qsdf95pdvs73atfls0-a.oregon-postgres.render.com",  # ✅ host ต้องไม่มี protocol
+        port="5432",
+        dbname="booking_system_mmdr",
+        user="booking_user",
+        password="1YtEzFr8UkRTNzzwYtKQe8jaaremuxyA",
+        sslmode="require"  # ✅ ใช้ sslmode=required กับ Render
+    )
 
 
 def load_data_from_file(filename):
@@ -279,6 +289,41 @@ def get_companies():
             "motorbike_companies": []
         })
     
+@app.context_processor
+def inject_user_info():
+    """ส่งข้อมูล user ปัจจุบันไปยัง template ทุกหน้า"""
+    user_info = {
+        'user_id': session.get('user_id'),
+        'username': session.get('username'),
+        'first_name': session.get('first_name'),
+        'last_name': session.get('last_name'),
+        'full_name': session.get('full_name'),
+        'role': session.get('role')
+    }
+    return dict(current_user=user_info)
+
+@app.route("/api/current_user", methods=["GET"])
+@login_required
+def get_current_user():
+    """API สำหรับดึงข้อมูล user ปัจจุบัน"""
+    try:
+        return jsonify({
+            "success": True,
+            "user": {
+                "user_id": session.get('user_id'),
+                "username": session.get('username'),
+                "first_name": session.get('first_name'),
+                "last_name": session.get('last_name'),
+                "full_name": session.get('full_name'),
+                "role": session.get('role')
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Error: {str(e)}"
+        })
+    
 
 @app.route("/submit_tour_booking", methods=["POST"])
 @login_required
@@ -416,7 +461,8 @@ def view_tour_bookings():
         # ดึงข้อมูล bookings
         query = """
         SELECT * FROM tour_rental
-        ORDER BY booking_date DESC, booking_no DESC
+        WHERE travel_date >= CURRENT_DATE
+        ORDER BY travel_date ASC
         LIMIT 50
         """
         cursor.execute(query)
@@ -1894,7 +1940,8 @@ def view_motorbike_bookings():
         SELECT 
             *
         FROM motorbike_rental
-        ORDER BY booking_date DESC, booking_no DESC
+        WHERE travel_date >= CURRENT_DATE
+        ORDER BY travel_date ASC
         LIMIT 50
         """
         
@@ -2746,7 +2793,8 @@ def home_transfer_form():
         SELECT 
             *
         FROM transfer_rental
-        ORDER BY booking_date DESC, booking_no DESC
+        WHERE travel_date >= CURRENT_DATE
+        ORDER BY travel_date ASC
         LIMIT 50
         """
         

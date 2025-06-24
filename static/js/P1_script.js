@@ -531,7 +531,7 @@ function cancelBookings() {
 
 // ฟังก์ชันแสดง modal สำหรับกรอกชื่อผู้ cancel
 function showCancelModal(selectedBookings) {
-    // สร้าง modal element
+    // สร้าง modal element (เหมือนเดิม)
     const modalHtml = `
         <div id="cancelModal" class="modal" style="display: block; z-index: 10000;">
             <div class="modal-content" style="max-width: 400px; margin: 15% auto;">
@@ -550,7 +550,11 @@ function showCancelModal(selectedBookings) {
                                placeholder="Enter your name" 
                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
                                maxlength="50"
+                               readonly
                                required>
+                        <small style="color: #666; font-size: 11px; margin-top: 4px; display: block;">
+                            Auto-filled from your login account
+                        </small>
                     </div>
                     <p style="color: #666; font-size: 12px; margin-top: 8px;">
                         This will update the payment status to "Cancelled by [Your Name]"
@@ -575,13 +579,23 @@ function showCancelModal(selectedBookings) {
     // เพิ่ม modal ไปยัง body
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
-    // focus ที่ input field
+    // ตั้งค่าชื่อ auto หลังจากสร้าง modal แล้ว
+    setTimeout(() => {
+        setCancelNameAuto();
+    }, 100);
+    
+    // เพิ่ม event listener สำหรับ Enter key
     setTimeout(() => {
         const nameInput = document.getElementById('cancelName');
         if (nameInput) {
-            nameInput.focus();
+            nameInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    confirmCancel();
+                }
+            });
         }
     }, 100);
+
     
     // เพิ่ม event listener สำหรับ Enter key
     document.getElementById('cancelName').addEventListener('keypress', function(e) {
@@ -718,7 +732,7 @@ function loadBookingDetailsForEdit(bookingNo) {
             const booking = data.booking;
             console.log("Booking data received:", booking);
             
-            // ข้อมูลพื้นฐาน
+            // ข้อมูลพื้นฐาน (เหมือนเดิม)
             document.getElementById('edit_booking_no').value = booking.booking_no;
             document.getElementById('edit_date').value = booking.travel_date || '';
             document.getElementById('edit_time').value = booking.pickup_time || '';
@@ -727,9 +741,16 @@ function loadBookingDetailsForEdit(bookingNo) {
             document.getElementById('edit_room').value = booking.room || '';
             document.getElementById('edit_persons').value = booking.quantity || '1';
             document.getElementById('edit_status').value = booking.payment_status || 'unpaid';
-            document.getElementById('edit_staffName').value = booking.staff_name || '';
             
-            // เพิ่มฟิลด์ที่ขาด
+            // ✅ แก้ไขส่วนนี้ - ใช้ current user แทนข้อมูลเก่า
+            getCurrentUser().then(user => {
+                const editStaffName = document.getElementById('edit_staffName');
+                if (editStaffName && user && user.full_name) {
+                    editStaffName.value = user.full_name;
+                }
+            });
+            
+            // เพิ่มฟิลด์ที่ขาด (เหมือนเดิม)
             const editMethod = document.getElementById('edit_method');
             const editRemark = document.getElementById('edit_remark');
             const editDiscount = document.getElementById('edit_discount');
@@ -738,26 +759,25 @@ function loadBookingDetailsForEdit(bookingNo) {
             if (editRemark) editRemark.value = booking.remark || '';
             if (editDiscount) editDiscount.value = booking.discount || '0';
             
-            // ตั้งค่า companies
+            // ตั้งค่า companies (เหมือนเดิม)
             initializeEditCompanies();
             
-            // รอให้ companies โหลดเสร็จแล้วค่อยตั้งค่า
+            // รอให้ companies โหลดเสร็จแล้วค่อยตั้งค่า (เหมือนเดิม)
             setTimeout(() => {
                 if (booking.company_name) {
                     document.getElementById('edit_company').value = booking.company_name;
                     handleEditCompanyChange();
                     
-                    // รอให้ details โหลดเสร็จแล้วค่อยตั้งค่า
                     setTimeout(() => {
                         if (booking.detail) {
                             document.getElementById('edit_detail').value = booking.detail;
-                            handleEditDetailChange(); // ตั้งค่าราคา
+                            handleEditDetailChange();
                         }
                     }, 500);
                 }
             }, 300);
             
-            // ซ่อน alert และแสดง modal
+            // ซ่อน alert และแสดง modal (เหมือนเดิม)
             const alertContainer = document.getElementById('alert-container');
             if (alertContainer) {
                 alertContainer.style.display = 'none';
@@ -1147,6 +1167,9 @@ window.onclick = function(event) {
 
 // Initialize เมื่อโหลดหน้า
 document.addEventListener('DOMContentLoaded', function() {
+
+    setStaffNameAuto();
+    
     // Load companies data
     loadTourCompanies().then(success => {
         console.log('Tour companies data loaded:', success);
@@ -1283,3 +1306,69 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// ===============================================
+// USER INFO FUNCTIONS
+// ===============================================
+
+/**
+ * ดึงข้อมูล user ปัจจุบันจาก server
+ */
+function getCurrentUser() {
+    return fetch('/api/current_user')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                return data.user;
+            } else {
+                console.error('Error getting current user:', data.message);
+                return null;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching current user:', error);
+            return null;
+        });
+}
+
+/**
+ * ตั้งค่า Staff Name อัตโนมัติ
+ */
+function setStaffNameAuto() {
+    const staffNameField = document.getElementById('staffName');
+    const editStaffNameField = document.getElementById('edit_staffName');
+    
+    // ถ้ามีข้อมูลใน template แล้ว (จาก context processor) ไม่ต้องทำอะไร
+    if (staffNameField && staffNameField.value) {
+        return Promise.resolve();
+    }
+    
+    // ถ้าไม่มี ให้ดึงจาก API
+    return getCurrentUser().then(user => {
+        if (user && user.full_name) {
+            if (staffNameField) {
+                staffNameField.value = user.full_name;
+            }
+            if (editStaffNameField) {
+                editStaffNameField.value = user.full_name;
+            }
+        }
+    });
+}
+
+/**
+ * ตั้งค่า Cancel Name อัตโนมัติ
+ */
+function setCancelNameAuto() {
+    const cancelNameField = document.getElementById('cancelName');
+    
+    if (cancelNameField) {
+        getCurrentUser().then(user => {
+            if (user && user.full_name) {
+                cancelNameField.value = user.full_name;
+                // ลบสี error ถ้ามี
+                cancelNameField.style.borderColor = '';
+            }
+        });
+    }
+}

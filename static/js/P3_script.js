@@ -658,7 +658,15 @@ function loadBookingDetailsForEdit(bookingNo) {
             document.getElementById('edit_surname').value = booking.customer_surname || '';
             document.getElementById('edit_room').value = booking.room || '';
             document.getElementById('edit_status').value = booking.payment_status || 'unpaid';
-            document.getElementById('edit_staffName').value = booking.staff_name || '';
+            
+            // ✅ แก้ไขส่วนนี้ - ใช้ current user แทนข้อมูลเก่า
+            getCurrentUser().then(user => {
+                const editStaffName = document.getElementById('edit_staffName');
+                if (editStaffName && user && user.full_name) {
+                    editStaffName.value = user.full_name;
+                }
+            });
+
             document.getElementById('edit_searchDateTo').value = booking.end_booking_date || '';
             
             // เพิ่มฟิลด์ที่ขาด
@@ -1171,7 +1179,7 @@ function cancelBookings() {
 }
 
 function showCancelModal(selectedBookings) {
-    // สร้าง modal element
+    // สร้าง modal element (เหมือนเดิม)
     const modalHtml = `
         <div id="cancelModal" class="modal" style="display: block; z-index: 10000;">
             <div class="modal-content" style="max-width: 400px; margin: 15% auto;">
@@ -1190,7 +1198,11 @@ function showCancelModal(selectedBookings) {
                                placeholder="Enter your name" 
                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;"
                                maxlength="50"
+                               readonly
                                required>
+                        <small style="color: #666; font-size: 11px; margin-top: 4px; display: block;">
+                            Auto-filled from your login account
+                        </small>
                     </div>
                     <p style="color: #666; font-size: 12px; margin-top: 8px;">
                         This will update the payment status to "Cancelled by [Your Name]"
@@ -1215,13 +1227,23 @@ function showCancelModal(selectedBookings) {
     // เพิ่ม modal ไปยัง body
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
-    // focus ที่ input field
+    // ตั้งค่าชื่อ auto หลังจากสร้าง modal แล้ว
+    setTimeout(() => {
+        setCancelNameAuto();
+    }, 100);
+    
+    // เพิ่ม event listener สำหรับ Enter key
     setTimeout(() => {
         const nameInput = document.getElementById('cancelName');
         if (nameInput) {
-            nameInput.focus();
+            nameInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    confirmCancel();
+                }
+            });
         }
     }, 100);
+
     
     // เพิ่ม event listener สำหรับ Enter key
     document.getElementById('cancelName').addEventListener('keypress', function(e) {
@@ -1451,6 +1473,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize discount validation first
     initializeDiscountValidation();
+
+    setStaffNameAuto();
     
     // Initialize form elements if they exist - สำหรับ motorbike form
     const discountInput = document.getElementById('discount');
@@ -1602,3 +1626,69 @@ document.addEventListener('DOMContentLoaded', function() {
     
     console.log('Motorbike script initialization complete');
 });
+
+// ===============================================
+// USER INFO FUNCTIONS
+// ===============================================
+
+/**
+ * ดึงข้อมูล user ปัจจุบันจาก server
+ */
+function getCurrentUser() {
+    return fetch('/api/current_user')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                return data.user;
+            } else {
+                console.error('Error getting current user:', data.message);
+                return null;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching current user:', error);
+            return null;
+        });
+}
+
+/**
+ * ตั้งค่า Staff Name อัตโนมัติ
+ */
+function setStaffNameAuto() {
+    const staffNameField = document.getElementById('staffName');
+    const editStaffNameField = document.getElementById('edit_staffName');
+    
+    // ถ้ามีข้อมูลใน template แล้ว (จาก context processor) ไม่ต้องทำอะไร
+    if (staffNameField && staffNameField.value) {
+        return Promise.resolve();
+    }
+    
+    // ถ้าไม่มี ให้ดึงจาก API
+    return getCurrentUser().then(user => {
+        if (user && user.full_name) {
+            if (staffNameField) {
+                staffNameField.value = user.full_name;
+            }
+            if (editStaffNameField) {
+                editStaffNameField.value = user.full_name;
+            }
+        }
+    });
+}
+
+/**
+ * ตั้งค่า Cancel Name อัตโนมัติ
+ */
+function setCancelNameAuto() {
+    const cancelNameField = document.getElementById('cancelName');
+    
+    if (cancelNameField) {
+        getCurrentUser().then(user => {
+            if (user && user.full_name) {
+                cancelNameField.value = user.full_name;
+                // ลบสี error ถ้ามี
+                cancelNameField.style.borderColor = '';
+            }
+        });
+    }
+}

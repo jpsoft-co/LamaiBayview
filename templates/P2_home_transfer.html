@@ -276,7 +276,7 @@
                             <ul class="links">
                                 <li>
                                     <a href="tour_rental_form">
-                                        <h3 style="color: #000000;">Tour Rental</h3>
+                                        <h3 style="color: #000000;">Tour</h3>
                                         <p>click for view the form</p>
                                     </a>
                                 </li>
@@ -488,7 +488,7 @@
                         <div class="form-group">
                             <label class="form-label" for="paymentmethod">Payment Method</label>
                             <select class="form-control" id="paymentmethod" name="paymentmethod" required>
-                                <option value=""></option>
+                                <option value="Unpaid">Unpaid</option>
                                 <option value="Cash">Cash</option>
                                 <option value="Credit">Credit/Debit cards</option>
                                 <option value="Bank">Bank transfer</option>
@@ -498,9 +498,20 @@
                     
                     <!-- เพิ่มฟิลด์ Driver Name -->
                     <div class="form-row">
-                        <div class="form-group">
+                        <!-- <div class="form-group">
                             <label class="form-label" for="staffName">Staff Name</label>
                             <input type="text" class="form-control" id="staffName" name="staffName" required placeholder="Staff member name">
+                        </div> -->
+                        <div class="form-group">
+                            <label class="form-label" for="staffName">Staff Name</label>
+                            <input type="text" 
+                                class="form-control" 
+                                id="staffName" 
+                                name="staffName" 
+                                placeholder="Reservation maker" 
+                                value="{{ current_user.full_name or '' }}"
+                                readonly
+                                required>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="driverName">Driver Name</label>
