@@ -1404,6 +1404,100 @@ function printToExcel() {
     });
 }
 
+// ===============================================
+// AGREEMENT PRINT FUNCTION - FIXED VERSION
+// ===============================================
+
+// Agreement Print Function - Fixed
+function printToAgreement() {
+    const selectedBookings = document.querySelectorAll('input[name="selected_bookings"]:checked');
+    
+    if (selectedBookings.length === 0) {
+        showAlert('Please select a booking', 'info');
+        return;
+    }
+    
+    if (selectedBookings.length > 1) {
+        showAlert('Please select only one booking', 'info');
+        return;
+    }
+    
+    const bookingNo = selectedBookings[0].value;
+    showAlert('Generating Agreement PDF...', 'info');
+    
+    const formData = new FormData();
+    formData.append('booking_no', bookingNo);
+    // ✅ เพิ่ม booking_type ที่หายไป
+    formData.append('booking_type', 'motorbike'); // หรือ 'tour' ตามความเหมาะสม
+    
+    fetch('/generate_agreement_excel_form', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.message || 'Error generating agreement');
+            });
+        }
+        
+        const contentType = response.headers.get('content-type');
+        console.log('Agreement response content type:', contentType);
+        
+        if (contentType && contentType.includes('application/json')) {
+            return response.json().then(data => {
+                throw new Error(data.message || 'Error generating agreement');
+            });
+        } else {
+            return response.blob();
+        }
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const contentType = blob.type || '';
+        console.log('Agreement blob type:', contentType);
+        
+        if (contentType.includes('application/pdf')) {
+            // เปิด PDF ในแท็บใหม่
+            const newTab = window.open(url, '_blank');
+            if (newTab) {
+                newTab.focus();
+                showAlert('Agreement PDF opened in new tab', 'success');
+            } else {
+                // ถ้าเปิดแท็บใหม่ไม่ได้ ให้ download
+                downloadAgreementFile(url, bookingNo, 'pdf');
+                showAlert('Agreement PDF downloaded successfully', 'success');
+            }
+        } else {
+            // ถ้าไม่ใช่ PDF ให้ download Excel
+            downloadAgreementFile(url, bookingNo, 'xlsx');
+            showAlert('Agreement Excel downloaded successfully', 'success');
+        }
+        
+        // ทำความสะอาด URL หลังจาก 5 วินาที
+        setTimeout(() => window.URL.revokeObjectURL(url), 5000);
+    })
+    .catch(error => {
+        console.error('Agreement generation error:', error);
+        showAlert(`Error generating agreement: ${error.message}`, 'error');
+    });
+}
+
+// ✅ ฟังก์ชันสำหรับ download agreement file
+function downloadAgreementFile(url, bookingNo, fileType) {
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    
+    const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const extension = fileType === 'pdf' ? 'pdf' : 'xlsx';
+    a.download = `Agreement_${bookingNo}_${dateStr}.${extension}`;
+    
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
 function downloadFile(url, bookingNo, fileType) {
     const a = document.createElement('a');
     a.style.display = 'none';

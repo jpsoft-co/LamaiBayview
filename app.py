@@ -1067,6 +1067,7 @@ def generate_excel_form():
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
 
 
+
 # เพิ่มฟังก์ชันทำความสะอาดไฟล์ชั่วคราว
 def cleanup_temp_files():
     """ลบไฟล์ชั่วคราวเก่า"""
@@ -1092,7 +1093,7 @@ def create_excel_form(booking, booking_type='tour'):
     
     # ✅ เลือก template ตามประเภท
     if booking_type == 'motorbike':
-        template_filename = 'motorbike_agreement_template.xlsx'
+        template_filename = 'motorbike_template.xlsx'
     else:
         template_filename = 'tour_template.xlsx'
     
@@ -1216,17 +1217,15 @@ def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
      
     basic_mappings = {
         "booking_date": ["I4", "I29"],
-        "booking_no": ["I6", "I30", "T10", "AE10"],
-        "customer_name": ["C11", "H24", "C35", "H48", "N12", "Y12"],
+        "booking_no": ["I6", "I30"],
+        "customer_name": ["C11", "H24", "C35", "H48"],
         "room": ["C12", "C36"],
         "travel_date": ["E12", "E36"],
-        "pickup_time": ["H12", "H36", "P13", "P14", "AA13", "AA14"],
+        "pickup_time": ["H12", "H36"],
         "payment_status": ["C20", "C44"],
         "staff_name": ["B24", "B48"],
         "payment_method": ["D21", "D45"],
         "remark": ["G21", "G45"],
-        "start_booking_date": ["N13", "Y13"],
-        "end_booking_date": ["N14", "Y14"],
     }
     # ใส่ข้อมูลพื้นฐาน
     for field, cells in basic_mappings.items():
@@ -1393,6 +1392,162 @@ def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
     
     return temp_file
 
+@app.route("/generate_agreement_excel_form", methods=["POST"])
+def generate_agree_excel_form():
+    try:
+        booking_no = request.form.get('booking_no')
+        booking_type = request.form.get('booking_type', 'motorbike')  # ✅ เพิ่ม default
+        
+        if not booking_no:
+            return jsonify({"success": False, "message": "Booking number not specified"}), 400
+        
+        print(f"Processing Agreement generation for {booking_type} booking: {booking_no}")
+        
+        # เชื่อมต่อฐานข้อมูล
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # ✅ เลือก table ตาม booking_type
+        if booking_type == 'motorbike':
+            table_name = 'motorbike_rental'
+        else:
+            # ถ้าต้องการรองรับ tour ในอนาคต
+            table_name = 'tour_rental'
+            
+        # ✅ Query ข้อมูล booking
+        query = f"""
+        SELECT 
+            booking_no, booking_date, travel_date, pickup_time, 
+            customer_name, customer_surname,
+            CONCAT(customer_name, ' ', customer_surname) AS full_name,
+            room, payment_status, staff_name, received,
+            quantity, detail, payment_method, remark, discount,
+            company_name, price, start_booking_date, end_booking_date
+        FROM {table_name} 
+        WHERE booking_no = %s
+        """
+        
+        cursor.execute(query, (booking_no,))
+        booking = cursor.fetchone()
+        
+        if not booking:
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "message": f"Booking number not found: {booking_no}"}), 404
+        
+        # ✅ สร้างไฟล์ Excel Agreement
+        excel_file = create_agreement_excel_form(booking)
+        
+        # แปลงเป็น PDF
+        pdf_file = convert_excel_to_pdf(excel_file)
+        
+        cursor.close()
+        conn.close()
+        
+        file_prefix = "Agreement"
+
+        print(f"Agreement file prefix: {file_prefix}")
+        print(f"Agreement download name: {file_prefix}_{booking_no}_{datetime.now().strftime('%Y%m%d')}.pdf")
+        
+        # ตรวจสอบว่าได้ PDF หรือ Excel
+        if pdf_file.endswith('.pdf'):
+            return send_file(
+                pdf_file,
+                as_attachment=False,  # เปิดในเบราว์เซอร์
+                download_name=f"{file_prefix}_{booking_no}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                mimetype='application/pdf'
+            )
+        else:
+            # ถ้าแปลง PDF ไม่ได้ ส่ง Excel แทน
+            return send_file(
+                excel_file,
+                as_attachment=True,
+                download_name=f"{file_prefix}_{booking_no}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        
+    except Exception as e:
+        print(f"Agreement generation error: {str(e)}")
+        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
+# ✅ แก้ไขฟังก์ชัน create_agreement_excel_form
+def create_agreement_excel_form(booking):  
+    """สร้าง Excel form สำหรับ Agreement"""
+    
+    # Define template path in static folder
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    template_filename = 'agreement_template.xlsx'
+    template_path = os.path.join(script_dir, 'static', 'templates', template_filename)
+    
+    # ตรวจสอบว่าไฟล์ template มีอยู่จริง
+    if not os.path.exists(template_path):
+        print(f"Agreement template not found at: {template_path}")
+        
+        templates_dir = os.path.join(script_dir, 'static', 'templates')
+        if not os.path.exists(templates_dir):
+            os.makedirs(templates_dir)
+            print(f"Created templates directory: {templates_dir}")
+        
+        raise FileNotFoundError(f"Agreement template not found at: {template_path}")
+    
+    # โหลด Excel template
+    workbook = openpyxl.load_workbook(template_path)
+    sheet = workbook.active
+    
+    # ✅ ใส่ข้อมูลลง template
+    return create_agreement_data_excel_form(booking, workbook, sheet, script_dir)
+
+def create_agreement_data_excel_form(booking, workbook, sheet, script_dir):
+    """ใส่ข้อมูลลงใน Agreement template"""
+     
+    # ✅ Cell mappings สำหรับ Agreement
+    basic_mappings = {
+        "booking_no": ["J10", "U10"],           # Booking Number
+        "customer_name": ["D12", "O12"],        # Customer Name
+        "start_booking_date": ["D13", "O13"],   # Start Date
+        "end_booking_date": ["D14", "O14"],     # End Date
+    }
+    
+    # ใส่ข้อมูลพื้นฐาน
+    for field, cells in basic_mappings.items():
+        value = None
+
+        if booking.get('received'):
+            sheet["J13"] = booking['received']
+            sheet["U13"] = booking['received']
+        
+        if field == "customer_name":
+            value = booking.get("full_name", "")
+        elif field in booking and booking[field] is not None:
+            value = booking[field]
+        
+        # จัดรูปแบบวันที่
+        if field in ["start_booking_date", "end_booking_date"]:
+            if value:
+                if isinstance(value, (date, datetime)):
+                    value = value.strftime("%d/%m/%Y")
+
+        if field == "booking_date" or field == "travel_date":
+            if value:
+                if isinstance(value, (date, datetime)):
+                    value = value.strftime("%d/%m/%Y")
+            
+        if value is not None:
+            for cell in cells:
+                sheet[cell] = value
+    
+    # ✅ เพิ่มรูปภาพ Agreement
+    add_agreement_images(sheet, script_dir)
+    
+    # สร้างไฟล์ชั่วคราว
+    temp_dir = tempfile.gettempdir()
+    temp_file = os.path.join(temp_dir, f"agreement_{uuid.uuid4()}.xlsx")
+    workbook.save(temp_file)
+    
+    print(f"Agreement Excel file saved to {temp_file}")
+    
+    return temp_file
+
 def add_tour_images(sheet, script_dir):
     """เพิ่มรูปภาพสำหรับ Tour"""
     logo_path = os.path.join(script_dir, 'static', 'image123', 'logscsoscexcel.png')
@@ -1437,23 +1592,35 @@ def add_motorbike_images(sheet, script_dir):
             img2.anchor = 'B27'
             sheet.add_image(img2)
 
-            # เพิ่มโลโก้ที่ (หน้าที่สาม)
-            img3 = Image(logo_path)
-            img3.width = 100
-            img3.height = 80
-            img3.anchor = 'M2'
-            sheet.add_image(img3)
-
-            # เพิ่มโลโก้ที่ (หน้าที่สี่)
-            img4 = Image(logo_path)
-            img4.width = 100
-            img4.height = 80
-            img4.anchor = 'X2'
-            sheet.add_image(img4)
-
             print(f"Motorbike logo added successfully")
         except Exception as e:
             print(f"Error adding motorbike logo: {str(e)}")
+
+def add_agreement_images(sheet, script_dir):
+    """เพิ่มรูปภาพสำหรับ Agreement"""
+    logo_path = os.path.join(script_dir, 'static', 'image', 'logoexcel.png')
+    
+    if os.path.exists(logo_path):
+        try:
+            # เพิ่มโลโก้หน้าแรก
+            img1 = Image(logo_path)
+            img1.width = 100
+            img1.height = 80
+            img1.anchor = 'B2'
+            sheet.add_image(img1)
+            
+            # เพิ่มโลโก้หน้าที่สอง
+            img2 = Image(logo_path)
+            img2.width = 100
+            img2.height = 80
+            img2.anchor = 'M2'
+            sheet.add_image(img2)
+
+            print(f"Agreement logos added successfully")
+        except Exception as e:
+            print(f"Error adding agreement logos: {str(e)}")
+    else:
+        print(f"Agreement logo not found at: {logo_path}")
     
     # เพิ่มรูปอื่นๆ สำหรับ Motorbike
     # additional_images = [
@@ -1592,11 +1759,11 @@ def export_tour():
 
         headers = [
             "Travel Date", "Time", "Booking Date", "Booking No.", "Name&Surname", 
-            "Room", "Company Name", "Detail", "Quantity", "Price", "Discount", "Recieved"
+            "Room", "Company Name", "Detail", "Quantity", "Price", "Discount", "Selling Price"
         ]
 
         if session.get('role') == 'admin':
-            headers.extend(["PAID", "AMOUNT"])
+            headers.extend(["Cost", "AMOUNT"])
 
         headers.extend([
             "Payment Status", "Staff Name", "Payment Method", "Remark"
@@ -1640,7 +1807,12 @@ def export_tour():
                 price_per_person = booking['received'] / booking['quantity']
             
             paid_amount = booking['paid'] if booking['paid'] else 0
-            amount = booking['received'] - paid_amount
+            
+            if booking['payment_status'] != "paid" or booking['payment_status'] != "unpaid":
+                amount = booking['received'] - paid_amount
+            else:
+                amount = 0
+
             full_name = f"{booking['customer_name']} {booking['customer_surname']}"
             
             # ⚠️ Row data ลบ exp_type_display ออก
