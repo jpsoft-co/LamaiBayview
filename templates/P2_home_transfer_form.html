@@ -473,7 +473,6 @@
     </div>
 
 <!-- Modal สำหรับการแก้ไขข้อมูล -->
-<!-- Modal สำหรับการแก้ไขข้อมูล -->
 <div id="editModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -507,62 +506,83 @@
                 </div>
             </div>
             
-            <!-- แก้ไขส่วน From และ To ให้เป็น dropdown แบบ dynamic -->
+            <!-- แก้ไขส่วน From และ To ให้เป็น dropdown แบบ dynamic พร้อม toggle buttons -->
             <div class="form-row">
                 <div class="form-group">
                     <label for="edit_place_from">From:</label>
                     <div class="location-input">
-                        <!-- Dropdown for departure (resort to destination) -->
-                        <select class="form-control" id="edit_place_from_departure" name="place_from" style="display: none;" onchange="handleEditFromChange()">
-                            <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
-                            <option value="custom">Enter custom location</option>
-                        </select>
+                        <!-- ✅ Toggle Buttons สำหรับ FROM -->
+                        <div class="input-toggle" style="margin-bottom: 5px;">
+                            <button type="button" id="edit_from_dropdown_btn" class="toggle-btn active" onclick="toggleEditFromInput('dropdown')">
+                                📋 Select from list
+                            </button>
+                            <button type="button" id="edit_from_custom_btn" class="toggle-btn" onclick="toggleEditFromInput('custom')">
+                                ✏️ Enter custom
+                            </button>
+                        </div>
                         
-                        <!-- Dropdown for arrival (origin to resort) -->
-                        <select class="form-control" id="edit_place_from_arrival" name="place_from" style="display: none;" onchange="handleEditFromChange()">
-                            <option value="">Select Origin</option>
-                            {% for origin in arrival_origins %}
-                            <option value="{{ origin.origin }}" 
-                                    data-passengers="{{ origin.passengers }}" 
-                                    data-price="{{ origin.received }}" 
-                                    data-paid="{{ origin.paid }}">
-                                {{ origin.origin }}
-                            </option>
-                            {% endfor %}
-                            <option value="custom">Enter custom location</option>
-                        </select>
+                        <!-- Dropdown container -->
+                        <div id="edit_from_dropdown_container">
+                            <!-- Dropdown for departure (resort to destination) -->
+                            <select class="form-control" id="edit_place_from_departure" name="place_from" style="display: none;" onchange="updateEditPersonOptions()">
+                                <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
+                            </select>
+                            
+                            <!-- Dropdown for arrival (origin to resort) -->
+                            <select class="form-control" id="edit_place_from_arrival" name="place_from" style="display: none;" onchange="updateEditPersonOptions()">
+                                <option value="">Select Origin</option>
+                                {% set seen_origins = [] %}
+                                {% for origin in arrival_origins %}
+                                    {% if origin.origin not in seen_origins %}
+                                        <option value="{{ origin.origin }}">{{ origin.origin }}</option>
+                                        {% set _ = seen_origins.append(origin.origin) %}
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
                         
-                        <!-- ✅ Always visible input field -->
-                        <input type="text" class="form-control" id="edit_place_from_input" name="place_from" 
-                            placeholder="Enter FROM location or select from dropdown">
+                        <!-- Custom input -->
+                        <input type="text" class="form-control" id="edit_place_from_input" name="place_from_custom" 
+                            style="display: none;" placeholder="Enter custom FROM location">
                     </div>
                 </div>
+                
                 <div class="form-group">
                     <label for="edit_place_to">To:</label>
                     <div class="location-input">
-                        <!-- Dropdown for departure (resort to destination) -->
-                        <select class="form-control" id="edit_place_to_departure" name="place_to" style="display: none;" onchange="handleEditToChange()">
-                            <option value="">Select Destination</option>
-                            {% for destination in departure_destinations %}
-                            <option value="{{ destination.destination }}" 
-                                    data-passengers="{{ destination.passengers }}" 
-                                    data-price="{{ destination.received }}" 
-                                    data-paid="{{ destination.paid }}">
-                                {{ destination.destination }}
-                            </option>
-                            {% endfor %}
-                            <option value="custom">Enter custom location</option>
-                        </select>
+                        <!-- ✅ Toggle Buttons สำหรับ TO -->
+                        <div class="input-toggle" style="margin-bottom: 5px;">
+                            <button type="button" id="edit_to_dropdown_btn" class="toggle-btn active" onclick="toggleEditToInput('dropdown')">
+                                📋 Select from list
+                            </button>
+                            <button type="button" id="edit_to_custom_btn" class="toggle-btn" onclick="toggleEditToInput('custom')">
+                                ✏️ Enter custom
+                            </button>
+                        </div>
                         
-                        <!-- Dropdown for arrival (origin to resort) -->
-                        <select class="form-control" id="edit_place_to_arrival" name="place_to" style="display: none;" onchange="handleEditToChange()">
-                            <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
-                            <option value="custom">Enter custom location</option>
-                        </select>
+                        <!-- Dropdown container -->
+                        <div id="edit_to_dropdown_container">
+                            <!-- ✅ แก้ไข ID ให้ถูกต้อง: edit_place_to_departure -->
+                            <select class="form-control" id="edit_place_to_departure" name="place_to" style="display: none;" onchange="updateEditPersonOptions()">
+                                <option value="">Select Destination</option>
+                                {% set seen_destinations = [] %}
+                                {% for destination in departure_destinations %}
+                                    {% if destination.destination not in seen_destinations %}
+                                        <option value="{{ destination.destination }}">{{ destination.destination }}</option>
+                                        {% set _ = seen_destinations.append(destination.destination) %}
+                                    {% endif %}
+                                {% endfor %}
+                            </select>                            
+                            
+                            <!-- Dropdown for arrival (origin to resort) -->
+                            <select class="form-control" id="edit_place_to_arrival" name="place_to" style="display: none;" onchange="updateEditPersonOptions()">
+                                <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
+                            </select>
+                        </div>
                         
-                        <!-- ✅ Always visible input field -->
-                        <input type="text" class="form-control" id="edit_place_to_input" name="place_to" 
-                            placeholder="Enter TO location or select from dropdown">
+                        <!-- Custom input -->
+                        <input type="text" class="form-control" id="edit_place_to_input" name="place_to_custom" 
+                            style="display: none;" placeholder="Enter custom TO location">
                     </div>
                 </div>
             </div>
@@ -579,12 +599,14 @@
             
             <div class="form-group">
                 <label for="edit_persons">Person:</label>
-                <input type="text" id="edit_persons" name="persons" min="1" step="1" placeholder="Enter number of passengers">
+                <select class="form-control" id="edit_persons" name="persons" required onchange="updateEditPriceFromPersons()">
+                    <option value="">Select passengers</option>
+                </select>
             </div>
             
             <div class="form-group">
                 <label for="edit_price">Price:</label>
-                <input type="number" id="edit_price" name="price" min="0" required>
+                <input type="number" id="edit_price" name="price" min="0" required readonly placeholder="Auto-filled from selection">
             </div>
 
             <div class="form-group">
@@ -639,7 +661,6 @@
                 <label for="edit_remark">Remark:</label>
                 <input type="text" id="edit_remark" name="remark">
             </div>                
-
             
             <div class="modal-footer">
                 <button type="button" class="card-btn" onclick="closeModal()">Cancel</button>

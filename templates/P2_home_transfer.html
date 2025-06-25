@@ -249,6 +249,8 @@
         color: white;
         border-color: #007bff;
     }
+
+    /* Styles for person/price selection - ลบออกเพราะไม่ใช้แล้ว */
 </style>
     <title>Home Transfer</title>
 </head>
@@ -374,20 +376,15 @@
                                 <!-- Dropdown container -->
                                 <div id="from_dropdown_container">
                                     <!-- Dropdown for departure -->
-                                    <select class="form-control" id="place_from_departure" name="place_from" style="display: block;" onchange="updatePriceInfo()">
+                                    <select class="form-control" id="place_from_departure" name="place_from" style="display: block;">
                                         <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
                                     </select>
                                     
                                     <!-- Dropdown for arrival -->
-                                    <select class="form-control" id="place_from_arrival" name="place_from" style="display: none;" onchange="updatePriceInfo()">
+                                    <select class="form-control" id="place_from_arrival" name="place_from" style="display: none;" onchange="updateAvailablePersonOptions()">
                                         <option value="">Select Origin</option>
                                         {% for origin in arrival_origins %}
-                                        <option value="{{ origin.origin }}" 
-                                                data-passengers="{{ origin.passengers }}" 
-                                                data-price="{{ origin.received }}" 
-                                                data-paid="{{ origin.paid }}">
-                                            {{ origin.origin }}
-                                        </option>
+                                        <option value="{{ origin.origin }}">{{ origin.origin }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -414,20 +411,15 @@
                                 <!-- Dropdown container -->
                                 <div id="to_dropdown_container">
                                     <!-- Dropdown for departure -->
-                                    <select class="form-control" id="place_to_departure" name="place_to" style="display: block;" onchange="updatePriceInfo()">
+                                    <select class="form-control" id="place_to_departure" name="place_to" style="display: block;" onchange="updateAvailablePersonOptions()">
                                         <option value="">Select Destination</option>
                                         {% for destination in departure_destinations %}
-                                        <option value="{{ destination.destination }}" 
-                                                data-passengers="{{ destination.passengers }}" 
-                                                data-price="{{ destination.received }}" 
-                                                data-paid="{{ destination.paid }}">
-                                            {{ destination.destination }}
-                                        </option>
+                                        <option value="{{ destination.destination }}">{{ destination.destination }}</option>
                                         {% endfor %}
                                     </select>
                                     
                                     <!-- Dropdown for arrival -->
-                                    <select class="form-control" id="place_to_arrival" name="place_to" style="display: none;" onchange="updatePriceInfo()">
+                                    <select class="form-control" id="place_to_arrival" name="place_to" style="display: none;">
                                         <option value="Lamai Bayview Boutique Resort">Lamai Bayview Boutique Resort</option>
                                     </select>
                                 </div>
@@ -438,7 +430,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="time">Time</label>
@@ -449,11 +441,13 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="persons">Person</label>
-                            <input type="text" class="form-control" id="persons" name="persons" placeholder="Enter number of passengers or auto-filled from route" min="1" step="1">
+                            <select class="form-control" id="persons" name="persons" required onchange="updatePriceFromPersons()">
+                                <option value="">Select passengers</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="price">Price</label>
-                            <input type="number" class="form-control" id="price" name="price" placeholder="Enter price or auto-filled from route" min="0" step="0.01">
+                            <input type="number" class="form-control" id="price" name="price" readonly placeholder="Auto-filled from selection" min="0" step="0.01">
                         </div>
                     </div>
                     
@@ -498,10 +492,6 @@
                     
                     <!-- เพิ่มฟิลด์ Driver Name -->
                     <div class="form-row">
-                        <!-- <div class="form-group">
-                            <label class="form-label" for="staffName">Staff Name</label>
-                            <input type="text" class="form-control" id="staffName" name="staffName" required placeholder="Staff member name">
-                        </div> -->
                         <div class="form-group">
                             <label class="form-label" for="staffName">Staff Name</label>
                             <input type="text" 
@@ -541,9 +531,9 @@
     <!-- Price Info Display (Optional) -->
     <div id="priceInfo" style="display: none; margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">
         <small>
-            <strong>Route Info:</strong> 
-            <span id="routePassengers"></span> passengers capacity, 
-            Base price: <span id="routePrice"></span> THB
+            <strong>Selected Route:</strong> 
+            <span id="selectedRoute"></span><br>
+            <strong>Available Options:</strong> <span id="availableOptionsCount"></span> pricing options
         </small>
     </div>
 </body>

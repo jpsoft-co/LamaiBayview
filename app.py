@@ -1050,7 +1050,7 @@ def generate_excel_form():
             return send_file(
                 pdf_file,
                 as_attachment=False,  # เปิดในเบราว์เซอร์
-                download_name=f"{file_prefix}_Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                download_name=f"{datetime.now().strftime('%Y%m%d')}_{booking_no}_{file_prefix}_Booking.pdf",
                 mimetype='application/pdf'
             )
         else:
@@ -1058,7 +1058,7 @@ def generate_excel_form():
             return send_file(
                 excel_file,
                 as_attachment=True,
-                download_name=f"{file_prefix}_Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                download_name=f"{datetime.now().strftime('%Y%m%d')}_{booking_no}_{file_prefix}_Booking.xlsx",
                 mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         
@@ -1445,16 +1445,13 @@ def generate_agree_excel_form():
         conn.close()
         
         file_prefix = "Agreement"
-
-        print(f"Agreement file prefix: {file_prefix}")
-        print(f"Agreement download name: {file_prefix}_{booking_no}_{datetime.now().strftime('%Y%m%d')}.pdf")
         
         # ตรวจสอบว่าได้ PDF หรือ Excel
         if pdf_file.endswith('.pdf'):
             return send_file(
                 pdf_file,
                 as_attachment=False,  # เปิดในเบราว์เซอร์
-                download_name=f"{file_prefix}_{booking_no}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                download_name=f"{datetime.now().strftime('%Y%m%d')}_{booking_no}_{file_prefix}.pdf",
                 mimetype='application/pdf'
             )
         else:
@@ -1462,7 +1459,7 @@ def generate_agree_excel_form():
             return send_file(
                 excel_file,
                 as_attachment=True,
-                download_name=f"{file_prefix}_{booking_no}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                download_name=f"{datetime.now().strftime('%Y%m%d')}_{booking_no}_{file_prefix}.xlsx",
                 mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         
@@ -1886,7 +1883,7 @@ def export_tour():
         return send_file(
             temp_file.name,
             as_attachment=True,
-            download_name=f"Tour_Export_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            download_name=f"{datetime.now().strftime('%Y%m%d')}_Tour_Export.xlsx",
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         
@@ -2745,7 +2742,7 @@ def export_motorbike():
         return send_file(
             temp_file.name,
             as_attachment=True,
-            download_name=f"Motorbike_Export_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            download_name=f"{datetime.now().strftime('%Y%m%d')}_Motorbike_Export.xlsx",
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         
@@ -2755,7 +2752,54 @@ def export_motorbike():
 
 # -------------------------------- home transfer Page --------------------------------------------------------------
 # app.py
+# เพิ่ม API endpoint นี้ใน Flask app ของคุณ
 
+@app.route("/api/get_transfer_routes", methods=["GET"])
+@login_required
+def get_transfer_routes():
+    """API endpoint สำหรับดึงข้อมูล transfer routes จาก database"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # ดึงข้อมูลทั้งหมดจาก transfer_tabel
+        query = """
+        SELECT place_from, place_to, passengers, received, paid 
+        FROM transfer_tabel 
+        ORDER BY place_from, place_to, passengers
+        """
+        cursor.execute(query)
+        routes = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        # แปลงข้อมูลให้เป็น format ที่ JavaScript ใช้ได้
+        transfer_routes = []
+        for route in routes:
+            transfer_routes.append({
+                'place_from': route['place_from'],
+                'place_to': route['place_to'],
+                'passengers': int(route['passengers']),  # แปลงเป็น integer
+                'received': float(route['received']) if route['received'] else 0,
+                'paid': float(route['paid']) if route['paid'] else 0
+            })
+        
+        return jsonify({
+            "success": True, 
+            "routes": transfer_routes,
+            "count": len(transfer_routes)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "success": False, 
+            "message": f"Error: {str(e)}",
+            "routes": [],
+            "count": 0
+        })
+
+# ปรับปรุง home_transfer route เพื่อส่งข้อมูลที่ง่ายขึ้น
 @app.route("/home_transfer")
 @login_required
 def home_transfer():
@@ -2764,9 +2808,9 @@ def home_transfer():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Get all unique destinations for departure transfers (where place_from is resort)
+        # Get unique destinations for departure transfers (where place_from is resort)
         departure_query = """
-        SELECT DISTINCT place_to as destination, passengers, received, paid 
+        SELECT DISTINCT place_to as destination
         FROM transfer_tabel 
         WHERE place_from = 'Lamai Bayview Boutique Resort'
         ORDER BY place_to
@@ -2774,9 +2818,9 @@ def home_transfer():
         cursor.execute(departure_query)
         departure_destinations = cursor.fetchall()
         
-        # Get all unique origins for arrival transfers (where place_to is resort)
+        # Get unique origins for arrival transfers (where place_to is resort)
         arrival_query = """
-        SELECT DISTINCT place_from as origin, passengers, received, paid 
+        SELECT DISTINCT place_from as origin
         FROM transfer_tabel 
         WHERE place_to = 'Lamai Bayview Boutique Resort'
         ORDER BY place_from
@@ -2797,56 +2841,8 @@ def home_transfer():
                              departure_destinations=[],
                              arrival_origins=[])
 
-@app.route("/get_transfer_price", methods=["POST"])
-@login_required
-def get_transfer_price():
-    """Get price information for selected transfer route"""
-    try:
-        transfer_type = request.json.get('transfer_type')  # 'departure' or 'arrival'
-        location = request.json.get('location')
-        
-        conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        if transfer_type == 'departure':
-            # For departure: from resort to selected destination
-            query = """
-            SELECT passengers, received, paid 
-            FROM transfer_tabel 
-            WHERE place_from = 'Lamai Bayview Boutique Resort' 
-            AND place_to = %s
-            LIMIT 1
-            """
-            cursor.execute(query, (location,))
-        else:
-            # For arrival: from selected origin to resort
-            query = """
-            SELECT passengers, received, paid 
-            FROM transfer_tabel 
-            WHERE place_from = %s 
-            AND place_to = 'Lamai Bayview Boutique Resort'
-            LIMIT 1
-            """
-            cursor.execute(query, (location,))
-        
-        result = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        
-        if result:
-            return jsonify({
-                "success": True,
-                "data": {
-                    "passengers": result['passengers'],
-                    "price": result['received'],  # Using 'received' as the base price
-                    "paid": result['paid']
-                }
-            })
-        else:
-            return jsonify({"success": False, "message": "Price not found for this route"})
-    
-    except Exception as e:
-        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+# ลบ API endpoint get_transfer_price เดิมออก เพราะไม่ใช้แล้ว
+# ใช้ข้อมูลจาก /api/get_transfer_routes แทน
 
 @app.route("/submit_transfer_booking", methods=["POST"])
 @login_required
@@ -3396,7 +3392,7 @@ def generate_excel_form_transfer():
             return send_file(
                 pdf_file,
                 as_attachment=False,  # เปิดในเบราว์เซอร์
-                download_name=f"Transfer_Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                download_name=f"{datetime.now().strftime('%Y%m%d')}_{booking_no}_Transfer_Booking.pdf",
                 mimetype='application/pdf'
             )
         else:
@@ -3404,7 +3400,7 @@ def generate_excel_form_transfer():
             return send_file(
                 excel_file,
                 as_attachment=True,
-                download_name=f"Transfer_Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                download_name=f"{datetime.now().strftime('%Y%m%d')}_{booking_no}_Transfer_Booking.xlsx",
                 mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         
@@ -3822,7 +3818,7 @@ def export_transfers():
         return send_file(
             temp_file.name,
             as_attachment=True,
-            download_name=f"Transfers_Export_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            download_name=f"{datetime.now().strftime('%Y%m%d')}_Transfers_Export.xlsx",
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         
@@ -4219,6 +4215,6 @@ def test_libreoffice_installation():
     except Exception as e:
         print(f"Error testing LibreOffice: {str(e)}")
         return False
-    
+
 if __name__ == "__main__":   
     app.run()
