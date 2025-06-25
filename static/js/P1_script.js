@@ -1024,7 +1024,7 @@ function submitExport() {
         // กำหนดชื่อไฟล์
         const today = new Date();
         const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-        let filename = `Tour_Export_${dateStr}.xlsx`;
+        let filename = `${dateStr}_Tour_Export.xlsx`;
         a.download = filename;
         
         // เพิ่ม element ไปที่ DOM และ trigger การคลิก
@@ -1139,7 +1139,7 @@ function downloadFile(url, bookingNo, fileType) {
     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
     const extension = fileType === 'pdf' ? 'pdf' : 'xlsx';
     
-    a.download = `Tour_Booking_${bookingNo}_${dateStr}.${extension}`;
+    a.download = `${dateStr}_${bookingNo}_Tour_Booking.${extension}`;
     
     // เพิ่ม element ไปที่ DOM และ trigger การคลิก
     document.body.appendChild(a);

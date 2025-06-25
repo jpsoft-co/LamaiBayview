@@ -1065,7 +1065,7 @@ function downloadTransferFile(url, bookingNo, fileType) {
     const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
     const extension = fileType === 'pdf' ? 'pdf' : 'xlsx';
     
-    a.download = `Transfer_Booking_${bookingNo}_${dateStr}.${extension}`;
+    a.download = `${dateStr}_${bookingNo}_Transfer_Booking.${extension}`;
     
     document.body.appendChild(a);
     a.click();
@@ -1374,7 +1374,7 @@ function submitExport() {
         
         const today = new Date();
         const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-        a.download = `Transfers_Export_${dateStr}.xlsx`;
+        a.download = `${dateStr}_Transfers_Export.xlsx`;
         
         document.body.appendChild(a);
         a.click();

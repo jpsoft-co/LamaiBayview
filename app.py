@@ -1043,7 +1043,7 @@ def generate_excel_form():
         file_prefix = "Tour" if booking_type == 'tour' else "Motorbike"
 
         print(f"File prefix: {file_prefix}")
-        print(f"Download name: {file_prefix}_Booking_{booking_no}_{datetime.now().strftime('%Y%m%d')}.pdf")
+        print(f"Download name: {datetime.now().strftime('%Y%m%d')}_{booking_no}_{file_prefix}_Booking.pdf")
         
         # ตรวจสอบว่าได้ PDF หรือ Excel
         if pdf_file.endswith('.pdf'):
