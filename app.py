@@ -1155,13 +1155,22 @@ def create_tour_excel_form(booking, workbook, sheet, script_dir):
         "price": ["H16", "H43"]
     }
     
-    # ใส่ข้อมูลลงในเซลล์ตาม mappings (เหมือนเดิม)
+    # ใส่ข้อมูลลงในเซลล์ตาม mappings
     for field, cells in cell_mappings.items():
         value = None
         
         # กรณีพิเศษสำหรับชื่อลูกค้าเต็ม
         if field == "customer_name":
             value = booking["full_name"]
+        # ✅ เพิ่ม capitalize สำหรับ payment_status
+        elif field == "payment_status":
+            if booking.get(field):
+                original_value = booking[field]
+                value = str(booking[field]).title()  # ใช้ title() แทน capitalize()
+                print(f"DEBUG payment_status: '{original_value}' → '{value}'")
+            else:
+                value = ""
+                print("DEBUG payment_status: No value found")
         elif field in booking and booking[field] is not None:
             value = booking[field]
         
@@ -1201,7 +1210,7 @@ def create_tour_excel_form(booking, workbook, sheet, script_dir):
     # ใส่สูตรคำนวณ
     for cell, formula in formula_cells.items():
         sheet[cell].value = formula
-    
+
     # เพิ่มรูปภาพ Tour
     add_tour_images(sheet, script_dir)
     
@@ -1227,12 +1236,22 @@ def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
         "payment_method": ["D21", "D45"],
         "remark": ["G21", "G45"],
     }
+    
     # ใส่ข้อมูลพื้นฐาน
     for field, cells in basic_mappings.items():
         value = None
         
         if field == "customer_name":
             value = booking.get("full_name", "")
+        # ✅ เพิ่ม capitalize สำหรับ payment_status
+        elif field == "payment_status":
+            if booking.get(field):
+                original_value = booking[field]
+                value = str(booking[field]).title()  # ใช้ title() แทน capitalize()
+                print(f"DEBUG payment_status: '{original_value}' → '{value}'")
+            else:
+                value = ""
+                print("DEBUG payment_status: No value found")
         elif field in booking and booking[field] is not None:
             value = booking[field]
         
@@ -3472,6 +3491,15 @@ def create_excel_form_transfer(booking):
         # กรณีพิเศษสำหรับชื่อลูกค้าเต็ม
         if field == "customer_name":
             value = booking["full_name"]
+        # ✅ เพิ่ม capitalize สำหรับ payment_status
+        elif field == "payment_status":
+            if booking.get(field):
+                original_value = booking[field]
+                value = str(booking[field]).title()  # ใช้ title() แทน capitalize()
+                print(f"DEBUG transfer payment_status: '{original_value}' → '{value}'")
+            else:
+                value = ""
+                print("DEBUG transfer payment_status: No value found")
         elif field in booking and booking[field] is not None:
             value = booking[field]
         
