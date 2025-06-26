@@ -1,8 +1,3 @@
-# เหลือทำ cancel
-# การคำนวณ discout
-# เลือกเป็นช่วงผู้โดยสาร
-# เลือก bike ได้หลายคัน
-
 from flask import Flask, render_template, request, jsonify, url_for, redirect, send_file, session, flash
 import os
 import re
@@ -55,15 +50,27 @@ def login_required(f):
 #             database=os.getenv("DB_NAME")
 #         )
 
+# def get_db_connection():
+#     return psycopg2.connect(
+#         host="dpg-d0qsdf95pdvs73atfls0-a.oregon-postgres.render.com",  # ✅ host ต้องไม่มี protocol
+#         port="5432",
+#         dbname="booking_system_mmdr",
+#         user="booking_user",
+#         password="1YtEzFr8UkRTNzzwYtKQe8jaaremuxyA",
+#         sslmode="require"  # ✅ ใช้ sslmode=required กับ Render
+#     )
+
 def get_db_connection():
     return psycopg2.connect(
-        host="dpg-d0qsdf95pdvs73atfls0-a.oregon-postgres.render.com",  # ✅ host ต้องไม่มี protocol
-        port="5432",
-        dbname="booking_system_mmdr",
-        user="booking_user",
-        password="1YtEzFr8UkRTNzzwYtKQe8jaaremuxyA",
+        host="aws-0-ap-southeast-1.pooler.supabase.com",  # ✅ host ต้องไม่มี protocol
+        port="6543",
+        dbname="postgres",
+        user="postgres.kctcgisrtoevphzlolww",
+        password="lamaibayview1234",
         sslmode="require"  # ✅ ใช้ sslmode=required กับ Render
     )
+
+
 
 
 def load_data_from_file(filename):
