@@ -34,44 +34,21 @@ def login_required(f):
 # ---------------------------------------Connect database ---------------------------------------
 
 # Database connection
-# def get_db_connection():
-#     database_url = os.getenv("DATABASE_URL")
-    
-#     if database_url:
-#         # สำหรับ Render.com
-#         return psycopg2.connect(database_url)
-#     else:
-#         # สำหรับ local development
-#         return psycopg2.connect(
-#             host=os.getenv("DB_HOST"),
-#             port=int(os.getenv("DB_PORT", 5432)),
-#             user=os.getenv("DB_USER"),
-#             password=os.getenv("DB_PASS"),
-#             database=os.getenv("DB_NAME")
-#         )
-
-# def get_db_connection():
-#     return psycopg2.connect(
-#         host="dpg-d0qsdf95pdvs73atfls0-a.oregon-postgres.render.com",  # ✅ host ต้องไม่มี protocol
-#         port="5432",
-#         dbname="booking_system_mmdr",
-#         user="booking_user",
-#         password="1YtEzFr8UkRTNzzwYtKQe8jaaremuxyA",
-#         sslmode="require"  # ✅ ใช้ sslmode=required กับ Render
-#     )
-
 def get_db_connection():
-    return psycopg2.connect(
-        host="aws-0-ap-southeast-1.pooler.supabase.com",  # ✅ host ต้องไม่มี protocol
-        port="6543",
-        dbname="postgres",
-        user="postgres.kctcgisrtoevphzlolww",
-        password="lamaibayview1234",
-        sslmode="require"  # ✅ ใช้ sslmode=required กับ Render
-    )
-
-
-
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        # สำหรับ Render.com
+        return psycopg2.connect(database_url)
+    else:
+        # สำหรับ local development
+        return psycopg2.connect(
+            host=os.getenv("DB_HOST"),
+            port=os.getenv("DB_PORT"),
+            dbname=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASS"),
+            sslmode=os.getenv("DB_SSLMODE", "require")
+        )
 
 def load_data_from_file(filename):
     try:
