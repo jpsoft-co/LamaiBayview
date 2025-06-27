@@ -8,45 +8,26 @@ from psycopg2.extras import RealDictCursor
 import openpyxl
 import tempfile
 import subprocess
-import platform
 from openpyxl.drawing.image import Image
 from functools import wraps
-import secrets
-import logging
-
-# ลบ import uuid ที่ผิด และใช้แบบนี้แทน
 import uuid
+import logging
+import time as time_module
 
 # ตั้งค่า logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 app = Flask(__name__)
 
-#---------------------------------------------- LOGIN ------------------------------------------------------
-# สร้าง secret key สำหรับ session
-app.secret_key = 'booking_system_secret_key_2024'
+# ปรับปรุง secret key สำหรับ production
+app.secret_key = os.getenv('SECRET_KEY', 'booking_system_secret_key_2024')
 
-@app.before_request
-def before_first_request():
-    """ทำงานครั้งแรกเมื่อ app เริ่มทำงาน"""
-    if not hasattr(app, 'initialized'):
-        if test_libreoffice_installation():
-            logger.info("✅ LibreOffice is ready for PDF conversion")
-        else:
-            logger.warning("⚠️ LibreOffice not available - will fallback to Excel files")
-        
-        app.initialized = True
-
-# เรียกใช้ cleanup เมื่อ app เริ่มทำงาน
-@app.before_first_request  
-def setup_cleanup():
-    cleanup_temp_files()
+# ตัวแปรเพื่อตรวจสอบว่า app ได้ initialize แล้วหรือยัง
+_app_initialized = False
 
 def test_libreoffice_installation():
     """ทดสอบว่า LibreOffice ติดตั้งและใช้งานได้หรือไม่"""
-    
     try:
         result = subprocess.run(
             ['libreoffice', '--version'],
@@ -68,6 +49,52 @@ def test_libreoffice_installation():
     except Exception as e:
         logger.error(f"Error testing LibreOffice: {str(e)}")
         return False
+
+def cleanup_temp_files():
+    """ลบไฟล์ชั่วคราวเก่า"""
+    temp_dir = tempfile.gettempdir()
+    current_time = datetime.now()
+    
+    try:
+        if not os.path.exists(temp_dir):
+            return
+            
+        for filename in os.listdir(temp_dir):
+            if filename.endswith(('.xlsx', '.pdf')):
+                file_path = os.path.join(temp_dir, filename)
+                try:
+                    # ลบไฟล์ที่เก่ากว่า 1 ชั่วโมง
+                    file_time = datetime.fromtimestamp(os.path.getctime(file_path))
+                    if (current_time - file_time).seconds > 3600:
+                        os.remove(file_path)
+                        logger.info(f"Cleaned up temp file: {filename}")
+                except Exception as e:
+                    logger.error(f"Error cleaning temp file {filename}: {e}")
+    except Exception as e:
+        logger.error(f"Error in cleanup_temp_files: {e}")
+
+def initialize_app():
+    """Initialize app resources"""
+    global _app_initialized
+    if not _app_initialized:
+        try:
+            if test_libreoffice_installation():
+                logger.info("✅ LibreOffice is ready for PDF conversion")
+            else:
+                logger.warning("⚠️ LibreOffice not available - will fallback to Excel files")
+            
+            # รัน cleanup files
+            cleanup_temp_files()
+            _app_initialized = True
+        except Exception as e:
+            logger.error(f"Error in initialize_app: {e}")
+            _app_initialized = True  # ให้ app ทำงานต่อไปได้
+
+# ✅ ใช้ @app.before_request แทน @app.before_first_request
+@app.before_request
+def before_request():
+    """ทำงานก่อน request แรก"""
+    initialize_app()
 
 # Decorator สำหรับตรวจสอบการ login
 def login_required(f):
@@ -935,9 +962,9 @@ def convert_excel_to_pdf_libreoffice(excel_path):
         # ดึง directory ที่จะส่งออก PDF
         output_dir = os.path.dirname(pdf_path)
         
-        print(f"Converting: {excel_path}")
-        print(f"Output dir: {output_dir}")
-        print(f"Expected PDF: {pdf_path}")
+        logger.info(f"Converting: {excel_path}")
+        logger.info(f"Output dir: {output_dir}")
+        logger.info(f"Expected PDF: {pdf_path}")
         
         # รัน LibreOffice headless command
         command = [
@@ -948,7 +975,7 @@ def convert_excel_to_pdf_libreoffice(excel_path):
             excel_path
         ]
         
-        print(f"LibreOffice command: {' '.join(command)}")
+        logger.info(f"LibreOffice command: {' '.join(command)}")
         
         # รันคำสั่งและรอให้เสร็จ
         result = subprocess.run(
@@ -958,42 +985,45 @@ def convert_excel_to_pdf_libreoffice(excel_path):
             timeout=60  # timeout 60 วินาที
         )
         
-        print(f"Return code: {result.returncode}")
-        print(f"STDOUT: {result.stdout}")
+        logger.info(f"Return code: {result.returncode}")
+        logger.info(f"STDOUT: {result.stdout}")
         if result.stderr:
-            print(f"STDERR: {result.stderr}")
+            logger.warning(f"STDERR: {result.stderr}")
         
         # ตรวจสอบว่าคำสั่งสำเร็จ
         if result.returncode == 0:
             # รอสักครู่เพื่อให้ไฟล์ถูกสร้างเสร็จ
-            time.sleep(1)
+            time_module.sleep(1)
             
             # ตรวจสอบว่าไฟล์ PDF ถูกสร้างขึ้น
             if os.path.exists(pdf_path):
-                print(f"PDF created successfully: {pdf_path}")
+                logger.info(f"PDF created successfully: {pdf_path}")
                 return pdf_path
             else:
-                print(f"PDF file not found at expected location: {pdf_path}")
+                logger.warning(f"PDF file not found at expected location: {pdf_path}")
                 # ลองหาไฟล์ PDF ในโฟลเดอร์ output
-                for file in os.listdir(output_dir):
-                    if file.endswith('.pdf'):
-                        found_pdf = os.path.join(output_dir, file)
-                        print(f"Found PDF file: {found_pdf}")
-                        return found_pdf
+                try:
+                    for file in os.listdir(output_dir):
+                        if file.endswith('.pdf'):
+                            found_pdf = os.path.join(output_dir, file)
+                            logger.info(f"Found PDF file: {found_pdf}")
+                            return found_pdf
+                except Exception as e:
+                    logger.error(f"Error listing directory: {e}")
                 return excel_path
         else:
-            print(f"LibreOffice conversion failed with return code: {result.returncode}")
-            print(f"Error: {result.stderr}")
+            logger.error(f"LibreOffice conversion failed with return code: {result.returncode}")
+            logger.error(f"Error: {result.stderr}")
             return excel_path
             
     except subprocess.TimeoutExpired:
-        print("LibreOffice conversion timed out")
+        logger.error("LibreOffice conversion timed out")
         return excel_path
     except FileNotFoundError:
-        print("LibreOffice not found on system")
+        logger.error("LibreOffice not found on system")
         return excel_path
     except Exception as e:
-        print(f"Error in LibreOffice conversion: {str(e)}")
+        logger.error(f"Error in LibreOffice conversion: {str(e)}")
         return excel_path
 
 def convert_excel_to_pdf(excel_path):
@@ -1004,19 +1034,19 @@ def safe_convert_to_pdf(excel_path):
     """Safe conversion with fallback to Excel if PDF fails"""
     
     try:
-        print("Attempting LibreOffice PDF conversion...")
+        logger.info("Attempting LibreOffice PDF conversion...")
         result = convert_excel_to_pdf_libreoffice(excel_path)
         
         # ถ้าได้ PDF file กลับมา ถือว่าสำเร็จ
         if result.endswith('.pdf') and os.path.exists(result):
-            print("PDF conversion successful")
+            logger.info("PDF conversion successful")
             return result
         else:
-            print("PDF conversion failed, returning Excel file")
+            logger.warning("PDF conversion failed, returning Excel file")
             return excel_path
                 
     except Exception as e:
-        print(f"PDF conversion error: {str(e)}, returning Excel file")
+        logger.error(f"PDF conversion error: {str(e)}, returning Excel file")
         return excel_path
 
 
@@ -4259,55 +4289,61 @@ def update_room_data():
 
 # new ---------------------------------------
 
+# แทนที่ส่วนท้ายสุดของไฟล์ app.py
 
-# แทนที่ส่วนท้ายของไฟล์ app.py
 @app.route("/test_pdf")
 def test_pdf_conversion():
     """Route สำหรับทดสอบการแปลง PDF"""
     try:
         # ทดสอบ LibreOffice
         if test_libreoffice_installation():
-            return jsonify({"success": True, "message": "LibreOffice is working", "version": "Available"})
+            return jsonify({
+                "success": True, 
+                "message": "LibreOffice is working", 
+                "version": "Available"
+            })
         else:
-            return jsonify({"success": False, "message": "LibreOffice not available"})
+            return jsonify({
+                "success": False, 
+                "message": "LibreOffice not available"
+            })
     except Exception as e:
-        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+        return jsonify({
+            "success": False, 
+            "message": f"Error: {str(e)}"
+        })
 
 @app.route("/health")
 def health_check():
     """Health check endpoint สำหรับ Render"""
-    return jsonify({"status": "healthy", "service": "booking-system"})
-
-def cleanup_temp_files():
-    """ลบไฟล์ชั่วคราวเก่า"""
-    temp_dir = tempfile.gettempdir()
-    current_time = datetime.now()
-    
     try:
-        for filename in os.listdir(temp_dir):
-            if filename.endswith(('.xlsx', '.pdf')):
-                file_path = os.path.join(temp_dir, filename)
-                try:
-                    # ลบไฟล์ที่เก่ากว่า 1 ชั่วโมง
-                    file_time = datetime.fromtimestamp(os.path.getctime(file_path))
-                    if (current_time - file_time).seconds > 3600:
-                        os.remove(file_path)
-                        logger.info(f"Cleaned up temp file: {filename}")
-                except Exception as e:
-                    logger.error(f"Error cleaning temp file {filename}: {e}")
+        libreoffice_status = test_libreoffice_installation()
+        return jsonify({
+            "status": "healthy", 
+            "service": "booking-system",
+            "libreoffice": libreoffice_status,
+            "app_initialized": _app_initialized
+        })
     except Exception as e:
-        logger.error(f"Error in cleanup_temp_files: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        })
 
+# ✅ Main entry point
 if __name__ == "__main__":
-    # ทดสอบ LibreOffice เมื่อรัน local
-    if test_libreoffice_installation():
-        print("✅ LibreOffice is ready for PDF conversion")
-    else:
-        print("⚠️ LibreOffice not available - will fallback to Excel files")
-    
-    # รัน cleanup files
-    cleanup_temp_files()
-    
-    port = int(os.environ.get('PORT', 5000))
-    debug_mode = os.environ.get('FLASK_ENV') != 'production'
-    app.run(host='0.0.0.0', port=port, debug=debug_mode)
+    try:
+        # Initialize app
+        initialize_app()
+        
+        port = int(os.environ.get('PORT', 5000))
+        debug_mode = os.environ.get('FLASK_ENV') != 'production'
+        
+        logger.info(f"Starting Flask app on port {port}")
+        logger.info(f"Debug mode: {debug_mode}")
+        
+        app.run(host='0.0.0.0', port=port, debug=debug_mode)
+        
+    except Exception as e:
+        logger.error(f"Failed to start Flask app: {str(e)}")
+        raise
