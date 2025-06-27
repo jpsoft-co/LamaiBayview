@@ -15,6 +15,13 @@ from openpyxl.drawing.image import Image
 from functools import wraps
 import secrets
 
+import logging
+
+# ตั้งค่า logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
 app = Flask(__name__)
 
 #---------------------------------------------- LOGIN ------------------------------------------------------
@@ -900,6 +907,8 @@ def convert_excel_to_pdf_libreoffice(excel_path):
             excel_path
         ]
         
+        print(f"LibreOffice command: {' '.join(command)}")
+        
         # รันคำสั่งและรอให้เสร็จ
         result = subprocess.run(
             command,
@@ -908,19 +917,28 @@ def convert_excel_to_pdf_libreoffice(excel_path):
             timeout=60  # timeout 60 วินาที
         )
         
-        print(f"LibreOffice command: {' '.join(command)}")
         print(f"Return code: {result.returncode}")
         print(f"STDOUT: {result.stdout}")
-        print(f"STDERR: {result.stderr}")
+        if result.stderr:
+            print(f"STDERR: {result.stderr}")
         
         # ตรวจสอบว่าคำสั่งสำเร็จ
         if result.returncode == 0:
+            # รอสักครู่เพื่อให้ไฟล์ถูกสร้างเสร็จ
+            time.sleep(1)
+            
             # ตรวจสอบว่าไฟล์ PDF ถูกสร้างขึ้น
             if os.path.exists(pdf_path):
                 print(f"PDF created successfully: {pdf_path}")
                 return pdf_path
             else:
                 print(f"PDF file not found at expected location: {pdf_path}")
+                # ลองหาไฟล์ PDF ในโฟลเดอร์ output
+                for file in os.listdir(output_dir):
+                    if file.endswith('.pdf'):
+                        found_pdf = os.path.join(output_dir, file)
+                        print(f"Found PDF file: {found_pdf}")
+                        return found_pdf
                 return excel_path
         else:
             print(f"LibreOffice conversion failed with return code: {result.returncode}")
@@ -976,7 +994,7 @@ def generate_excel_form():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # ✅ เลือก table และ query ตามประเภท
+        # เลือก table และ query ตามประเภท
         if booking_type == 'tour':
             table_name = 'tour_rental'
             
@@ -994,7 +1012,6 @@ def generate_excel_form():
         else:  # motorbike
             table_name = 'motorbike_rental'
             
-            # ✅ สำหรับ motorbike ต้องดึง company_name และ price ด้วย
             query = f"""
             SELECT 
                 booking_no, booking_date, travel_date, pickup_time, 
@@ -1018,8 +1035,8 @@ def generate_excel_form():
         # สร้างไฟล์ Excel
         excel_file = create_excel_form(booking, booking_type)
         
-        # แปลงเป็น PDF
-        pdf_file = convert_excel_to_pdf(excel_file)
+        # แปลงเป็น PDF ด้วย LibreOffice
+        pdf_file = safe_convert_to_pdf(excel_file)
         
         cursor.close()
         conn.close()
@@ -1027,7 +1044,7 @@ def generate_excel_form():
         file_prefix = "Tour" if booking_type == 'tour' else "Motorbike"
 
         print(f"File prefix: {file_prefix}")
-        print(f"Download name: {datetime.now().strftime('%Y%m%d')}_{booking_no}_{file_prefix}_Booking.pdf")
+        print(f"Final file: {pdf_file}")
         
         # ตรวจสอบว่าได้ PDF หรือ Excel
         if pdf_file.endswith('.pdf'):
@@ -1399,7 +1416,7 @@ def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
 def generate_agree_excel_form():
     try:
         booking_no = request.form.get('booking_no')
-        booking_type = request.form.get('booking_type', 'motorbike')  # ✅ เพิ่ม default
+        booking_type = request.form.get('booking_type', 'motorbike')
         
         if not booking_no:
             return jsonify({"success": False, "message": "Booking number not specified"}), 400
@@ -1410,14 +1427,11 @@ def generate_agree_excel_form():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # ✅ เลือก table ตาม booking_type
         if booking_type == 'motorbike':
             table_name = 'motorbike_rental'
         else:
-            # ถ้าต้องการรองรับ tour ในอนาคต
             table_name = 'tour_rental'
             
-        # ✅ Query ข้อมูล booking
         query = f"""
         SELECT 
             booking_no, booking_date, travel_date, pickup_time, 
@@ -1438,11 +1452,11 @@ def generate_agree_excel_form():
             conn.close()
             return jsonify({"success": False, "message": f"Booking number not found: {booking_no}"}), 404
         
-        # ✅ สร้างไฟล์ Excel Agreement
+        # สร้างไฟล์ Excel Agreement
         excel_file = create_agreement_excel_form(booking)
         
-        # แปลงเป็น PDF
-        pdf_file = convert_excel_to_pdf(excel_file)
+        # แปลงเป็น PDF ด้วย LibreOffice
+        pdf_file = safe_convert_to_pdf(excel_file)
         
         cursor.close()
         conn.close()
@@ -1453,12 +1467,11 @@ def generate_agree_excel_form():
         if pdf_file.endswith('.pdf'):
             return send_file(
                 pdf_file,
-                as_attachment=False,  # เปิดในเบราว์เซอร์
+                as_attachment=False,
                 download_name=f"{datetime.now().strftime('%Y%m%d')}_{booking_no}_{file_prefix}.pdf",
                 mimetype='application/pdf'
             )
         else:
-            # ถ้าแปลง PDF ไม่ได้ ส่ง Excel แทน
             return send_file(
                 excel_file,
                 as_attachment=True,
@@ -3357,7 +3370,6 @@ def generate_excel_form_transfer():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # ดึงข้อมูลการจอง
         query = """
         SELECT 
             booking_no, booking_date, travel_date, pickup_time, 
@@ -3375,7 +3387,7 @@ def generate_excel_form_transfer():
         if not booking:
             cursor.close()
             conn.close()
-            return jsonify({"success": False, "message": f"Booking not found: {booking_no}"}), 404
+            return jsonify({"success": False, "message": f"Booking number not found: {booking_no}"}), 404
         
         print(f"Transfer booking data retrieved: {booking}")
         
@@ -3383,8 +3395,8 @@ def generate_excel_form_transfer():
         excel_file = create_excel_form_transfer(booking)
         print(f"Transfer Excel file created at: {excel_file}")
         
-        # ⚠️ แปลงเป็น PDF เหมือนกับ Tour/Motorbike
-        pdf_file = convert_excel_to_pdf(excel_file)
+        # แปลงเป็น PDF ด้วย LibreOffice
+        pdf_file = safe_convert_to_pdf(excel_file)
         print(f"Transfer PDF file: {pdf_file}")
         
         cursor.close()
@@ -3394,12 +3406,11 @@ def generate_excel_form_transfer():
         if pdf_file.endswith('.pdf'):
             return send_file(
                 pdf_file,
-                as_attachment=False,  # เปิดในเบราว์เซอร์
+                as_attachment=False,
                 download_name=f"{datetime.now().strftime('%Y%m%d')}_{booking_no}_Transfer_Booking.pdf",
                 mimetype='application/pdf'
             )
         else:
-            # ถ้าแปลง PDF ไม่ได้ ส่ง Excel แทน
             return send_file(
                 excel_file,
                 as_attachment=True,
@@ -4227,6 +4238,52 @@ def test_libreoffice_installation():
     except Exception as e:
         print(f"Error testing LibreOffice: {str(e)}")
         return False
+    
 
-if __name__ == "__main__":   
-    app.run()
+# new ---------------------------------------
+@app.before_first_request
+def check_libreoffice():
+    """ทดสอบ LibreOffice เมื่อ app เริ่มทำงาน"""
+    if test_libreoffice_installation():
+        print("✅ LibreOffice is ready for PDF conversion")
+    else:
+        print("⚠️ LibreOffice not available - will fallback to Excel files")
+
+# เพิ่มฟังก์ชันทำความสะอาดไฟล์ชั่วคราว
+def cleanup_temp_files():
+    """ลบไฟล์ชั่วคราวเก่า"""
+    temp_dir = tempfile.gettempdir()
+    current_time = datetime.now()
+    
+    try:
+        for filename in os.listdir(temp_dir):
+            if filename.endswith(('.xlsx', '.pdf')):
+                file_path = os.path.join(temp_dir, filename)
+                try:
+                    # ลบไฟล์ที่เก่ากว่า 1 ชั่วโมง
+                    file_time = datetime.fromtimestamp(os.path.getctime(file_path))
+                    if (current_time - file_time).seconds > 3600:
+                        os.remove(file_path)
+                        print(f"Cleaned up temp file: {filename}")
+                except Exception as e:
+                    print(f"Error cleaning temp file {filename}: {e}")
+    except Exception as e:
+        print(f"Error in cleanup_temp_files: {e}")
+
+# เรียกใช้ cleanup เมื่อ app เริ่มทำงาน
+@app.before_first_request  
+def setup_cleanup():
+    cleanup_temp_files()
+
+if __name__ == "__main__":
+    # ทดสอบ LibreOffice เมื่อรัน local
+    if test_libreoffice_installation():
+        print("✅ LibreOffice is ready for PDF conversion")
+    else:
+        print("⚠️ LibreOffice not available - will fallback to Excel files")
+    
+    # รัน cleanup files
+    cleanup_temp_files()
+    
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)

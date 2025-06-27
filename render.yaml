@@ -1,0 +1,20 @@
+# render.yaml
+services:
+  - type: web
+    name: booking-system
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter # หรือ free ถ้าใช้ free tier
+    region: singapore # เลือก region ที่ใกล้ที่สุด
+    healthCheckPath: /
+    envVars:
+      - key: DATABASE_URL
+        sync: false # ต้องตั้งค่าใน Render dashboard
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true # Render จะสร้าง secret key ให้อัตโนมัติ
+    disk:
+      name: temp-files
+      mountPath: /tmp
+      sizeGB: 1
