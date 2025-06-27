@@ -5,17 +5,17 @@ import io
 from datetime import date, datetime, time
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import uuid
 import openpyxl
 import tempfile
 import subprocess
 import platform
 from openpyxl.drawing.image import Image
-
 from functools import wraps
 import secrets
-
 import logging
+
+# ลบ import uuid ที่ผิด และใช้แบบนี้แทน
+import uuid
 
 # ตั้งค่า logging
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +27,47 @@ app = Flask(__name__)
 #---------------------------------------------- LOGIN ------------------------------------------------------
 # สร้าง secret key สำหรับ session
 app.secret_key = 'booking_system_secret_key_2024'
+
+@app.before_request
+def before_first_request():
+    """ทำงานครั้งแรกเมื่อ app เริ่มทำงาน"""
+    if not hasattr(app, 'initialized'):
+        if test_libreoffice_installation():
+            logger.info("✅ LibreOffice is ready for PDF conversion")
+        else:
+            logger.warning("⚠️ LibreOffice not available - will fallback to Excel files")
+        
+        app.initialized = True
+
+# เรียกใช้ cleanup เมื่อ app เริ่มทำงาน
+@app.before_first_request  
+def setup_cleanup():
+    cleanup_temp_files()
+
+def test_libreoffice_installation():
+    """ทดสอบว่า LibreOffice ติดตั้งและใช้งานได้หรือไม่"""
+    
+    try:
+        result = subprocess.run(
+            ['libreoffice', '--version'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            logger.info(f"LibreOffice is available: {result.stdout.strip()}")
+            return True
+        else:
+            logger.warning(f"LibreOffice not working: {result.stderr}")
+            return False
+            
+    except FileNotFoundError:
+        logger.warning("LibreOffice not installed")
+        return False
+    except Exception as e:
+        logger.error(f"Error testing LibreOffice: {str(e)}")
+        return False
 
 # Decorator สำหรับตรวจสอบการ login
 def login_required(f):
@@ -4214,42 +4255,29 @@ def update_room_data():
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"})
 
-def test_libreoffice_installation():
-    """ทดสอบว่า LibreOffice ติดตั้งและใช้งานได้หรือไม่"""
-    
-    try:
-        result = subprocess.run(
-            ['libreoffice', '--version'],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        
-        if result.returncode == 0:
-            print(f"LibreOffice is available: {result.stdout.strip()}")
-            return True
-        else:
-            print(f"LibreOffice not working: {result.stderr}")
-            return False
-            
-    except FileNotFoundError:
-        print("LibreOffice not installed")
-        return False
-    except Exception as e:
-        print(f"Error testing LibreOffice: {str(e)}")
-        return False
-    
+   
 
 # new ---------------------------------------
-@app.before_first_request
-def check_libreoffice():
-    """ทดสอบ LibreOffice เมื่อ app เริ่มทำงาน"""
-    if test_libreoffice_installation():
-        print("✅ LibreOffice is ready for PDF conversion")
-    else:
-        print("⚠️ LibreOffice not available - will fallback to Excel files")
 
-# เพิ่มฟังก์ชันทำความสะอาดไฟล์ชั่วคราว
+
+# แทนที่ส่วนท้ายของไฟล์ app.py
+@app.route("/test_pdf")
+def test_pdf_conversion():
+    """Route สำหรับทดสอบการแปลง PDF"""
+    try:
+        # ทดสอบ LibreOffice
+        if test_libreoffice_installation():
+            return jsonify({"success": True, "message": "LibreOffice is working", "version": "Available"})
+        else:
+            return jsonify({"success": False, "message": "LibreOffice not available"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+
+@app.route("/health")
+def health_check():
+    """Health check endpoint สำหรับ Render"""
+    return jsonify({"status": "healthy", "service": "booking-system"})
+
 def cleanup_temp_files():
     """ลบไฟล์ชั่วคราวเก่า"""
     temp_dir = tempfile.gettempdir()
@@ -4264,16 +4292,11 @@ def cleanup_temp_files():
                     file_time = datetime.fromtimestamp(os.path.getctime(file_path))
                     if (current_time - file_time).seconds > 3600:
                         os.remove(file_path)
-                        print(f"Cleaned up temp file: {filename}")
+                        logger.info(f"Cleaned up temp file: {filename}")
                 except Exception as e:
-                    print(f"Error cleaning temp file {filename}: {e}")
+                    logger.error(f"Error cleaning temp file {filename}: {e}")
     except Exception as e:
-        print(f"Error in cleanup_temp_files: {e}")
-
-# เรียกใช้ cleanup เมื่อ app เริ่มทำงาน
-@app.before_first_request  
-def setup_cleanup():
-    cleanup_temp_files()
+        logger.error(f"Error in cleanup_temp_files: {e}")
 
 if __name__ == "__main__":
     # ทดสอบ LibreOffice เมื่อรัน local
@@ -4286,4 +4309,5 @@ if __name__ == "__main__":
     cleanup_temp_files()
     
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    debug_mode = os.environ.get('FLASK_ENV') != 'production'
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
