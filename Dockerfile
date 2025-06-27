@@ -1,18 +1,20 @@
-# Dockerfile - พร้อม debug
+# Dockerfile
 FROM python:3.11-slim
 
 # อัพเดต pip
 RUN pip install --upgrade pip
 
-# ติดตั้ง system dependencies
+# ติดตั้ง system dependencies รวม LibreOffice
 RUN apt-get update && apt-get install -y \
     libreoffice \
     libreoffice-writer \
     libreoffice-calc \
-    default-jre \
+    libreoffice-common \
+    default-jre-headless \
     fontconfig \
     fonts-dejavu-core \
     fonts-liberation \
+    fonts-noto \
     curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -30,19 +32,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # สร้าง directory สำหรับ temp files
-RUN mkdir -p /tmp/excel_temp
+RUN mkdir -p /tmp/excel_temp && chmod 777 /tmp/excel_temp
 
 # ทดสอบ LibreOffice
 RUN libreoffice --version
-
-# ทดสอบ import modules
-RUN python -c "
-import flask
-import psycopg2
-import openpyxl
-print('All modules imported successfully')
-print('Flask version:', flask.__version__)
-"
 
 # ตั้งค่า environment variables
 ENV PYTHONUNBUFFERED=1
