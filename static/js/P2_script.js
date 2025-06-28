@@ -1294,6 +1294,7 @@ function submitExport() {
     const filterTypeRadio = document.querySelector('input[name="exportFilterType"]:checked');
     const transferTypeRadio = document.querySelector('input[name="exportTransferType"]:checked');
     const paymentStatusRadio = document.querySelector('input[name="exportPaymentStatus"]:checked');
+    const dateTypeRadio = document.querySelector('input[name="exportDateType"]:checked');
     
     if (!filterTypeRadio || !transferTypeRadio) {
         showAlert('Please select filter and transfer type', 'warning');
@@ -1303,11 +1304,13 @@ function submitExport() {
     const filterType = filterTypeRadio.value;
     const transferType = transferTypeRadio.value;
     const paymentStatus = paymentStatusRadio ? paymentStatusRadio.value : 'all';
+    const dateType = dateTypeRadio ? dateTypeRadio.value : 'travelDate';
     
     let formData = new FormData();
     formData.append('filter_type', filterType);
     formData.append('transfer_type', transferType);
     formData.append('payment_status', paymentStatus);
+    formData.append('date_type', dateType);
     
     if (filterType === 'date') {
         const startDate = document.getElementById('export_start_date')?.value;

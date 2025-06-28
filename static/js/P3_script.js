@@ -921,6 +921,19 @@ function createExportModal() {
                     <h2 style="margin: 0; color: #8c7356;">Export Motorbike Data</h2>
                 </div>
                 <form id="exportForm" class="export-form">
+                    <div class="form-group">
+                        <label>Date Type:</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="exportDateType" value="travelDate" checked>
+                                <span class="radio-label">Travel Date</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="exportDateType" value="bookingDate">
+                                <span class="radio-label">Booking Date</span>
+                            </label>
+                        </div>
+                    </div>
                     <div class="form-group" style="margin-bottom: 20px;">
                         <label style="display: block; margin-bottom: 10px; font-weight: bold;">Filter Type:</label>
                         <div class="radio-group" style="display: flex; gap: 15px;">
@@ -1049,18 +1062,21 @@ function toggleExportFields() {
 function submitExport() {
     const filterTypeRadio = document.querySelector('input[name="exportFilterType"]:checked');
     const paymentStatusRadio = document.querySelector('input[name="exportPaymentStatus"]:checked');
+    const dateTypeRadio = document.querySelector('input[name="exportDateType"]:checked');
     
     if (!filterTypeRadio) {
-        showAlert('Please select filter type', 'warning');
+        showAlert('Please select filter type', 'info');
         return;
     }
     
     const filterType = filterTypeRadio.value;
     const paymentStatus = paymentStatusRadio ? paymentStatusRadio.value : 'all';
+    const dateType = dateTypeRadio ? dateTypeRadio.value : 'travelDate';
     
     let formData = new FormData();
     formData.append('filter_type', filterType);
     formData.append('payment_status', paymentStatus);
+    formData.append('date_type', dateType);
     
     // Add date parameters based on filter type
     if (filterType === 'date') {

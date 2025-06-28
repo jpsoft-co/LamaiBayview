@@ -1730,7 +1730,8 @@ def export_tour():
         # Get filter parameters
         filter_type = request.form.get('filter_type', '')
         payment_status = request.form.get('payment_status', 'all')
-        
+        date_type = request.form.get('date_type', 'travelDate')
+
         # ⚠️ Base query เปลี่ยนจาก tour_motobike_rental เป็น tour_rental
         query = """
         SELECT 
@@ -1760,57 +1761,106 @@ def export_tour():
         
         params = []
         
-        # Apply date filters (เหมือนเดิม)
-        if filter_type == 'date':
-            start_date = request.form.get('start_date', '')
-            end_date = request.form.get('end_date', '')
+        if date_type == 'travelDate':
             
-            if start_date:
-                query += " AND tr.travel_date >= %s"
-                params.append(start_date)
-            
-            if end_date:
-                query += " AND tr.travel_date  <= %s"
-                params.append(end_date)
+            if filter_type == 'date':
+                start_date = request.form.get('start_date', '')
+                end_date = request.form.get('end_date', '')
                 
-        elif filter_type == 'month':
-            start_month = request.form.get('start_month', '')
-            end_month = request.form.get('end_month', '')
-            
-            if start_month:
-                start_date = f"{start_month}-01"
-                query += " AND tr.travel_date  >= %s"
-                params.append(start_date)
-            
-            if end_month:
-                year, month = map(int, end_month.split('-'))
-                if month == 12:
-                    next_year = year + 1
-                    next_month = 1
-                else:
-                    next_year = year
-                    next_month = month + 1
+                if start_date:
+                    query += " AND tr.travel_date >= %s"
+                    params.append(start_date)
                 
-                end_date = f"{next_year}-{next_month:02d}-01"
-                query += " AND tr.travel_date  < %s"
-                params.append(end_date)
+                if end_date:
+                    query += " AND tr.travel_date  <= %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'month':
+                start_month = request.form.get('start_month', '')
+                end_month = request.form.get('end_month', '')
                 
-        elif filter_type == 'year':
-            start_year = request.form.get('start_year', '')
-            end_year = request.form.get('end_year', '')
+                if start_month:
+                    start_date = f"{start_month}-01"
+                    query += " AND tr.travel_date  >= %s"
+                    params.append(start_date)
+                
+                if end_month:
+                    year, month = map(int, end_month.split('-'))
+                    if month == 12:
+                        next_year = year + 1
+                        next_month = 1
+                    else:
+                        next_year = year
+                        next_month = month + 1
+                    
+                    end_date = f"{next_year}-{next_month:02d}-01"
+                    query += " AND tr.travel_date  < %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'year':
+                start_year = request.form.get('start_year', '')
+                end_year = request.form.get('end_year', '')
+                
+                if start_year:
+                    start_date = f"{start_year}-01-01"
+                    query += " AND tr.travel_date  >= %s"
+                    params.append(start_date)
+                
+                if end_year:
+                    end_date = f"{int(end_year) + 1}-01-01"
+                    query += " AND tr.travel_date  < %s"
+                    params.append(end_date)
+
+        if date_type == 'bookingDate':
             
-            if start_year:
-                start_date = f"{start_year}-01-01"
-                query += " AND tr.travel_date  >= %s"
-                params.append(start_date)
+            if filter_type == 'date':
+                start_date = request.form.get('start_date', '')
+                end_date = request.form.get('end_date', '')
+                
+                if start_date:
+                    query += " AND tr.booking_date >= %s"
+                    params.append(start_date)
+                
+                if end_date:
+                    query += " AND tr.booking_date  <= %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'month':
+                start_month = request.form.get('start_month', '')
+                end_month = request.form.get('end_month', '')
+                
+                if start_month:
+                    start_date = f"{start_month}-01"
+                    query += " AND tr.booking_date  >= %s"
+                    params.append(start_date)
+                
+                if end_month:
+                    year, month = map(int, end_month.split('-'))
+                    if month == 12:
+                        next_year = year + 1
+                        next_month = 1
+                    else:
+                        next_year = year
+                        next_month = month + 1
+                    
+                    end_date = f"{next_year}-{next_month:02d}-01"
+                    query += " AND tr.booking_date  < %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'year':
+                start_year = request.form.get('start_year', '')
+                end_year = request.form.get('end_year', '')
+                
+                if start_year:
+                    start_date = f"{start_year}-01-01"
+                    query += " AND tr.booking_date  >= %s"
+                    params.append(start_date)
+                
+                if end_year:
+                    end_date = f"{int(end_year) + 1}-01-01"
+                    query += " AND tr.booking_date  < %s"
+                    params.append(end_date)
             
-            if end_year:
-                end_date = f"{int(end_year) + 1}-01-01"
-                query += " AND tr.travel_date  < %s"
-                params.append(end_date)
-        
-        # ⚠️ ลบ experience_type filter ออก
-        
         # Apply payment status filter
         if payment_status == 'paid':
             query += " AND tr.payment_status = 'paid'"
@@ -2528,6 +2578,7 @@ def export_motorbike():
         # Get filter parameters
         filter_type = request.form.get('filter_type', '')
         payment_status = request.form.get('payment_status', 'all')
+        date_type = request.form.get('date_type', 'travelDate')
         
         query = """
         SELECT 
@@ -2556,55 +2607,107 @@ def export_motorbike():
 
         total_paid = 0
         
+        if date_type == 'travekl_date':
+            # Apply date filters
+            if filter_type == 'date':
+                start_date = request.form.get('start_date', '')
+                end_date = request.form.get('end_date', '')
+                
+                if start_date:
+                    query += " AND travel_date >= %s"
+                    params.append(start_date)
+                
+                if end_date:
+                    query += " AND travel_date <= %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'month':
+                start_month = request.form.get('start_month', '')
+                end_month = request.form.get('end_month', '')
+                
+                if start_month:
+                    start_date = f"{start_month}-01"
+                    query += " AND travel_date >= %s"
+                    params.append(start_date)
+                
+                if end_month:
+                    year, month = map(int, end_month.split('-'))
+                    if month == 12:
+                        next_year = year + 1
+                        next_month = 1
+                    else:
+                        next_year = year
+                        next_month = month + 1
+                    
+                    end_date = f"{next_year}-{next_month:02d}-01"
+                    query += " AND travel_date < %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'year':
+                start_year = request.form.get('start_year', '')
+                end_year = request.form.get('end_year', '')
+                
+                if start_year:
+                    start_date = f"{start_year}-01-01"
+                    query += " AND travel_date >= %s"
+                    params.append(start_date)
+                
+                if end_year:
+                    end_date = f"{int(end_year) + 1}-01-01"
+                    query += " AND travel_date < %s"
+                    params.append(end_date)
+
+        if date_type == 'booking_date':
         # Apply date filters
-        if filter_type == 'date':
-            start_date = request.form.get('start_date', '')
-            end_date = request.form.get('end_date', '')
-            
-            if start_date:
-                query += " AND travel_date >= %s"
-                params.append(start_date)
-            
-            if end_date:
-                query += " AND travel_date <= %s"
-                params.append(end_date)
+            if filter_type == 'date':
+                start_date = request.form.get('start_date', '')
+                end_date = request.form.get('end_date', '')
                 
-        elif filter_type == 'month':
-            start_month = request.form.get('start_month', '')
-            end_month = request.form.get('end_month', '')
-            
-            if start_month:
-                start_date = f"{start_month}-01"
-                query += " AND travel_date >= %s"
-                params.append(start_date)
-            
-            if end_month:
-                year, month = map(int, end_month.split('-'))
-                if month == 12:
-                    next_year = year + 1
-                    next_month = 1
-                else:
-                    next_year = year
-                    next_month = month + 1
+                if start_date:
+                    query += " AND travel_date >= %s"
+                    params.append(start_date)
                 
-                end_date = f"{next_year}-{next_month:02d}-01"
-                query += " AND travel_date < %s"
-                params.append(end_date)
+                if end_date:
+                    query += " AND travel_date <= %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'month':
+                start_month = request.form.get('start_month', '')
+                end_month = request.form.get('end_month', '')
                 
-        elif filter_type == 'year':
-            start_year = request.form.get('start_year', '')
-            end_year = request.form.get('end_year', '')
-            
-            if start_year:
-                start_date = f"{start_year}-01-01"
-                query += " AND travel_date >= %s"
-                params.append(start_date)
-            
-            if end_year:
-                end_date = f"{int(end_year) + 1}-01-01"
-                query += " AND travel_date < %s"
-                params.append(end_date)
-        
+                if start_month:
+                    start_date = f"{start_month}-01"
+                    query += " AND travel_date >= %s"
+                    params.append(start_date)
+                
+                if end_month:
+                    year, month = map(int, end_month.split('-'))
+                    if month == 12:
+                        next_year = year + 1
+                        next_month = 1
+                    else:
+                        next_year = year
+                        next_month = month + 1
+                    
+                    end_date = f"{next_year}-{next_month:02d}-01"
+                    query += " AND travel_date < %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'year':
+                start_year = request.form.get('start_year', '')
+                end_year = request.form.get('end_year', '')
+                
+                if start_year:
+                    start_date = f"{start_year}-01-01"
+                    query += " AND travel_date >= %s"
+                    params.append(start_date)
+                
+                if end_year:
+                    end_date = f"{int(end_year) + 1}-01-01"
+                    query += " AND travel_date < %s"
+                    params.append(end_date)
+
+
         # Apply payment status filter
         if payment_status == 'paid':
             query += " AND payment_status = 'paid'"
@@ -3650,6 +3753,7 @@ def export_transfers():
         filter_type = request.form.get('filter_type', '')
         transfer_type = request.form.get('transfer_type', 'all')
         payment_status = request.form.get('payment_status', 'all')
+        date_type = request.form.get('date_type', 'travelDate')
         
         # Base query - Updated to match new schema with JOIN to get paid amount
         query = """
@@ -3681,54 +3785,105 @@ def export_transfers():
         
         params = []
         
-        # Apply date filters based on filter type
-        if filter_type == 'date':
-            start_date = request.form.get('start_date', '')
-            end_date = request.form.get('end_date', '')
-            
-            if start_date:
-                query += " AND tr.travel_date >= %s"
-                params.append(start_date)
-            
-            if end_date:
-                query += " AND tr.travel_date <= %s"
-                params.append(end_date)
+        if date_type == 'travel_date':
+            # Apply date filters based on filter type
+            if filter_type == 'date':
+                start_date = request.form.get('start_date', '')
+                end_date = request.form.get('end_date', '')
                 
-        elif filter_type == 'month':
-            start_month = request.form.get('start_month', '')
-            end_month = request.form.get('end_month', '')
-            
-            if start_month:
-                start_date = f"{start_month}-01"
-                query += " AND tr.travel_date >= %s"
-                params.append(start_date)
-            
-            if end_month:
-                year, month = map(int, end_month.split('-'))
-                if month == 12:
-                    next_year = year + 1
-                    next_month = 1
-                else:
-                    next_year = year
-                    next_month = month + 1
+                if start_date:
+                    query += " AND tr.travel_date >= %s"
+                    params.append(start_date)
                 
-                end_date = f"{next_year}-{next_month:02d}-01"
-                query += " AND tr.travel_date < %s"
-                params.append(end_date)
+                if end_date:
+                    query += " AND tr.travel_date <= %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'month':
+                start_month = request.form.get('start_month', '')
+                end_month = request.form.get('end_month', '')
                 
-        elif filter_type == 'year':
-            start_year = request.form.get('start_year', '')
-            end_year = request.form.get('end_year', '')
-            
-            if start_year:
-                start_date = f"{start_year}-01-01"
-                query += " AND tr.travel_date >= %s"
-                params.append(start_date)
-            
-            if end_year:
-                end_date = f"{int(end_year) + 1}-01-01"
-                query += " AND tr.travel_date < %s"
-                params.append(end_date)
+                if start_month:
+                    start_date = f"{start_month}-01"
+                    query += " AND tr.travel_date >= %s"
+                    params.append(start_date)
+                
+                if end_month:
+                    year, month = map(int, end_month.split('-'))
+                    if month == 12:
+                        next_year = year + 1
+                        next_month = 1
+                    else:
+                        next_year = year
+                        next_month = month + 1
+                    
+                    end_date = f"{next_year}-{next_month:02d}-01"
+                    query += " AND tr.travel_date < %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'year':
+                start_year = request.form.get('start_year', '')
+                end_year = request.form.get('end_year', '')
+                
+                if start_year:
+                    start_date = f"{start_year}-01-01"
+                    query += " AND tr.travel_date >= %s"
+                    params.append(start_date)
+                
+                if end_year:
+                    end_date = f"{int(end_year) + 1}-01-01"
+                    query += " AND tr.travel_date < %s"
+                    params.append(end_date)
+
+        if date_type == 'booking_date':
+            # Apply date filters based on filter type
+            if filter_type == 'date':
+                start_date = request.form.get('start_date', '')
+                end_date = request.form.get('end_date', '')
+                
+                if start_date:
+                    query += " AND tr.travel_date >= %s"
+                    params.append(start_date)
+                
+                if end_date:
+                    query += " AND tr.travel_date <= %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'month':
+                start_month = request.form.get('start_month', '')
+                end_month = request.form.get('end_month', '')
+                
+                if start_month:
+                    start_date = f"{start_month}-01"
+                    query += " AND tr.travel_date >= %s"
+                    params.append(start_date)
+                
+                if end_month:
+                    year, month = map(int, end_month.split('-'))
+                    if month == 12:
+                        next_year = year + 1
+                        next_month = 1
+                    else:
+                        next_year = year
+                        next_month = month + 1
+                    
+                    end_date = f"{next_year}-{next_month:02d}-01"
+                    query += " AND tr.travel_date < %s"
+                    params.append(end_date)
+                    
+            elif filter_type == 'year':
+                start_year = request.form.get('start_year', '')
+                end_year = request.form.get('end_year', '')
+                
+                if start_year:
+                    start_date = f"{start_year}-01-01"
+                    query += " AND tr.travel_date >= %s"
+                    params.append(start_date)
+                
+                if end_year:
+                    end_date = f"{int(end_year) + 1}-01-01"
+                    query += " AND tr.travel_date < %s"
+                    params.append(end_date)
         
         # Apply transfer type filter
         if transfer_type == 'departure':

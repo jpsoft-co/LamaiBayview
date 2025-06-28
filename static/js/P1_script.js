@@ -922,6 +922,7 @@ function toggleExportFields() {
 function submitExport() {
     const filterTypeRadio = document.querySelector('input[name="exportFilterType"]:checked');
     const paymentStatusRadio = document.querySelector('input[name="exportPaymentStatus"]:checked');
+    const dateTypeRadio = document.querySelector('input[name="exportDateType"]:checked');
     
     if (!filterTypeRadio) {
         showAlert('Please select filter type', 'info');
@@ -930,10 +931,12 @@ function submitExport() {
     
     const filterType = filterTypeRadio.value;
     const paymentStatus = paymentStatusRadio ? paymentStatusRadio.value : 'all';
-    
+    const dateType = dateTypeRadio ? dateTypeRadio.value : 'travelDate';
+
     let formData = new FormData();
     formData.append('filter_type', filterType);
     formData.append('payment_status', paymentStatus);
+    formData.append('date_type', dateType);  // เพิ่มบรรทัดนี้
     
     // เพิ่มข้อมูลตามประเภทการกรอง
     if (filterType === 'date') {
