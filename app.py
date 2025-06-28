@@ -1226,6 +1226,11 @@ def create_tour_excel_form(booking, workbook, sheet, script_dir):
         "quantity": ["I16", "I43"],  # Number of people
         "price": ["H16", "H43"]
     }
+
+    from datetime import datetime
+    today_formatted = datetime.now().strftime("%y%m%d")
+    sheet["B16"] = today_formatted
+    sheet["B43"] = today_formatted
     
     # ใส่ข้อมูลลงในเซลล์ตาม mappings
     for field, cells in cell_mappings.items():
@@ -1308,6 +1313,11 @@ def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
         "payment_method": ["D21", "D45"],
         "remark": ["G21", "G45"],
     }
+
+    from datetime import datetime
+    today_formatted = datetime.now().strftime("%y%m%d")
+    sheet["B14"] = today_formatted
+    sheet["B38"] = today_formatted
     
     # ใส่ข้อมูลพื้นฐาน
     for field, cells in basic_mappings.items():
@@ -1345,20 +1355,13 @@ def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
             for cell in cells:
                 sheet[cell] = value
     
-    # ✅ แยกข้อมูล comma-separated สำหรับ motorbike (แบบง่าย)
-    companies = []
+    # ✅ แยกข้อมูล comma-separated สำหรับ motorbike (เอา company ออก ใช้ detail แทน)
     details = []
     prices = []
     quantities = []
     
     try:
-        # ✅ แปลง company_name
-        if booking.get('company_name'):
-            company_data = str(booking['company_name']).strip()
-            if company_data:
-                companies = [c.strip() for c in company_data.split(',') if c.strip()]
-        
-        # ✅ แปลง detail
+        # ✅ แปลง detail (ย้ายมาเป็นคอลัมน์แรก)
         if booking.get('detail'):
             detail_data = str(booking['detail']).strip()
             if detail_data:
@@ -1381,7 +1384,6 @@ def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
                 quantities = [int(q.strip()) for q in qty_data.split(',') if q.strip()]
         
         # ✅ Debug: แสดงผลการแปลง
-        print(f"Parsed companies: {companies}")
         print(f"Parsed details: {details}")
         print(f"Parsed prices: {prices}")
         print(f"Parsed quantities: {quantities}")
@@ -1389,23 +1391,18 @@ def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
     except Exception as e:
         print(f"Error parsing motorbike data: {str(e)}")
         # ถ้า error ให้ใช้ข้อมูลเปล่า
-        companies = ["Error parsing"]
         details = ["Error parsing"]
         prices = [0]
         quantities = [0]
     
-    # ✅ ใส่ข้อมูลลงในเซลล์แบบแยกบรรทัด (แบบง่าย)
+    # ✅ ใส่ข้อมูลลงในเซลล์แบบแยกบรรทัด (ใช้ detail แทน company)
     try:
         # หน้าแรก: เริ่ม row 16
         row = 14
-        for i in range(len(companies)):
-            if i < len(companies):
-                sheet[f"C{row}"] = companies[i]
-                print(f"Set C{row} = {companies[i]}")
-            
+        for i in range(len(details)):
             if i < len(details):
-                sheet[f"E{row}"] = details[i]
-                print(f"Set E{row} = {details[i]}")
+                sheet[f"C{row}"] = details[i]  # ใช้ detail แทน company
+                print(f"Set C{row} = {details[i]}")
             
             if i < len(prices):
                 sheet[f"G{row}"] = prices[i]
@@ -1427,12 +1424,9 @@ def create_motorbike_excel_form(booking, workbook, sheet, script_dir):
         
         # หน้าสอง: เริ่ม row 43 (ข้อมูลเดียวกัน)
         row = 38
-        for i in range(len(companies)):
-            if i < len(companies):
-                sheet[f"C{row}"] = companies[i]
-            
+        for i in range(len(details)):
             if i < len(details):
-                sheet[f"E{row}"] = details[i]
+                sheet[f"C{row}"] = details[i]  # ใช้ detail แทน company
             
             if i < len(prices):
                 sheet[f"G{row}"] = prices[i]
